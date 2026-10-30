@@ -1,0 +1,72 @@
+{
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "tcp",
+        "tag": "remote",
+        "server": "1.1.1.1",
+        "detour": "proxy"
+      }
+    ],
+    "final": "remote",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "sbtun0",
+      "address": ["198.18.0.1/30", "fdfe:dcba:9876::1/126"],
+      "mtu": 1400,
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "system",
+      "route_exclude_address": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "fc00::/7",
+        "fe80::/10",
+        "${PROXY_IP}/32"
+      ]
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "proxy",
+      "server": "${PROXY_IP}",
+      "server_port": 4433,
+      "uuid": "${VLESS_UUID}",
+      "transport": {
+        "type": "ws",
+        "path": "/masoud",
+        "headers": { "Host": "3x.n3xus.ir" }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      { "action": "sniff" },
+      { "protocol": "dns", "action": "hijack-dns" },
+      { "port": 53, "action": "hijack-dns" },
+      { "ip_cidr": ["127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "${PROXY_IP}/32"], "outbound": "direct" }
+    ],
+    "final": "proxy",
+    "auto_detect_interface": true
+  },
+  "experimental": {
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "secret": "${CLASH_SECRET}"
+    }
+  }
+}

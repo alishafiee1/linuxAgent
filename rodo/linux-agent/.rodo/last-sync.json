@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "project": "linux-agent",
+  "startedAt": 1793318551224,
+  "finishedAt": 1793318551265,
+  "mode": "offline",
+  "clock": {
+    "source": "system",
+    "offsetMs": 0
+  },
+  "pulled": 0,
+  "pushed": 0,
+  "created": 0,
+  "archived": 0,
+  "conflicts": [],
+  "notes": [
+    "OFFLINE: this project is not bound to a board (run rodo init); cards were validated only"
+  ],
+  "files": [],
+  "summary": {
+    "files": 6,
+    "errors": 0,
+    "warnings": 0
+  }
+}
