@@ -1,0 +1,21 @@
+{
+  "kitVersion": "2.2.1",
+  "files": {
+    ".agents/skills/rodo/coder.md": "sha256:7d15825a18e018315f3f63f9f59f7a02692981f72cbbecc0bb709b29676af21c",
+    ".agents/skills/rodo/onboarding.md": "sha256:3c8c62416ba20fcf147af8fdbba4e2b44141dc871d45c54b94aef59b5342f645",
+    ".agents/skills/rodo/planner.md": "sha256:5654fbf5f294cb93ce5dea08e3d1b3d48f53996c0ba43eb5f7c69080c6fbad9f",
+    ".agents/skills/rodo/SKILL.md": "sha256:92e1eec7b998b7b26d7d6d6035b9fedbb9bb6c03975755a89226f865b24ba9cb",
+    ".agents/skills/rodo/small-change.md": "sha256:75310d562119a270fadf1f4f2efeefb004171d47527594d57090449a085007e4",
+    ".agents/skills/rodo/templates/acceptance.feature": "sha256:0156ea9eb06f09de596a52a5ad2b1852b351d9cbe7a28230a4f90a2138a4b131",
+    ".agents/skills/rodo/templates/card.rodo.md": "sha256:87d4a87355bb5582cdb25d3de7b0c994af49ea464a19541158964337c3fec4d9",
+    ".agents/skills/rodo/templates/design.md": "sha256:4395a48d3430dbd6e2e9d3277bfc8dea8d614aa84dd0ebd24e69afaf866c6873",
+    ".agents/skills/rodo/templates/en/acceptance.feature": "sha256:376079e6a1b3ec9d0598d479c408c996196940d6dc7008d96e6d55c91c73ee04",
+    ".agents/skills/rodo/templates/en/card.rodo.md": "sha256:535ba770372a35a08ebfc25d5ecba3412167515239fa28a6cc77552da04b5bae",
+    ".agents/skills/rodo/templates/en/request.rodo.md": "sha256:09591f2fd1e512af462f245857c117ddcce2e210fbb8e5b579bbc30e0f1e023b",
+    ".agents/skills/rodo/templates/en/simple.md": "sha256:d1d72724c6a082336b6799cc83776816f28fb501cab760ec6e71e47b35cc1b44",
+    ".agents/skills/rodo/templates/request.rodo.md": "sha256:1e99ca237113de04cc755882040adfd8b3f6f0f175b57ee0ac006f5fab2fa57f",
+    ".agents/skills/rodo/templates/simple.md": "sha256:b81908a8886698cce148400113a2525f6c44cf34c8e412290ba1652b3b928b6f",
+    ".agents/skills/rodo/templates/spec.md": "sha256:8c603638c145277a41452d0ee06ffdda4531c8cd3091c306600d161d9a5665c8",
+    ".agents/skills/rodo/testing.md": "sha256:4620c3f4371c176fe495a5a9cbb91878b369b3d5a990451746c8a9b5c4a2fdc3"
+  }
+}

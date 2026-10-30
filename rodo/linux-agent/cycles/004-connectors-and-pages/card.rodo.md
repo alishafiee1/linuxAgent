@@ -1,8 +1,10 @@
 ---
 schemaVersion: 2
-title: "اتصال به سرویس‌ها و صفحه‌ها"
+id: cmvu8nska0377mk010p6oew9l
+title: اتصال به سرویس‌ها و صفحه‌ها
 status: todo
 priority: medium
+updatedAt: 1793316702415
 ---
 
 ## Goal
@@ -15,4 +17,4 @@ priority: medium
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/004-connectors-and-pages/simple.md)
+- [توضیح ساده](/rodo/linux-agent/cycles/004-connectors-and-pages/simple.md) <!-- rodo:ref_cmvu8nskx0379mk01n18rvpwq -->
