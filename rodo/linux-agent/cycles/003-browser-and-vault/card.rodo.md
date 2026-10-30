@@ -1,10 +1,8 @@
 ---
 schemaVersion: 2
-id: cmvu8nsfx036zmk01jx841g9n
-title: مرورگر زنده و گاوصندوق
+title: "مرورگر زنده و گاوصندوق"
 status: todo
 priority: medium
-updatedAt: 1793316701374
 ---
 
 ## Goal
@@ -17,4 +15,4 @@ updatedAt: 1793316701374
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/003-browser-and-vault/simple.md) <!-- rodo:ref_cmvu8nsgx0371mk01af8ym0wg -->
+- [توضیح ساده](/rodo/linux-agent/cycles/003-browser-and-vault/simple.md)

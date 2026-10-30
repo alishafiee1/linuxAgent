@@ -2,9 +2,9 @@
   "schemaVersion": 2,
   "projectSlug": "linux-agent",
   "name": "linuxAgent",
-  "serverUrl": "https://rodo.n3xus.ir",
-  "boardId": "cmvu8nc4h034wmk01yk689b0r",
-  "repoFingerprint": "sha256:ccd3a844170bcd97e6ea8dfb026022db662d54a37a0e170efe2d68512911ae74",
+  "serverUrl": null,
+  "boardId": null,
+  "repoFingerprint": null,
   "language": { "simple": "fa", "technical": "en" },
   "testCommand": null,
   "stepsDirs": []

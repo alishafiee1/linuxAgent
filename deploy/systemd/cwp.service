@@ -1,0 +1,22 @@
+[Unit]
+Description=linuxAgent panel (cwp)
+After=network-online.target sing-box.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=panel
+Group=panel
+WorkingDirectory=/opt/cwp
+Environment=NODE_ENV=production
+Environment=CWP_ENV_FILE=/etc/cwp/env
+ExecStart=/usr/bin/node /opt/cwp/apps/server/dist/index.js
+Restart=always
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=30
+# sudo is needed for cwp-agent-exec and cwp-proxy-apply, so NoNewPrivileges stays off.
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target

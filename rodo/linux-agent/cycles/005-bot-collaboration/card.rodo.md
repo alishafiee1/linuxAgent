@@ -1,10 +1,8 @@
 ---
 schemaVersion: 2
-id: cmvu8nsoe037fmk01tn2vg21g
-title: همکاری بات‌ها
+title: "همکاری بات‌ها"
 status: todo
 priority: medium
-updatedAt: 1793316703847
 ---
 
 ## Goal
@@ -17,4 +15,4 @@ updatedAt: 1793316703847
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/005-bot-collaboration/simple.md) <!-- rodo:ref_cmvu8nsox037hmk01kyp7rls3 -->
+- [توضیح ساده](/rodo/linux-agent/cycles/005-bot-collaboration/simple.md)

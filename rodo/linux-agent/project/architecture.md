@@ -1,6 +1,6 @@
 # معماری
 
-> هنوز کدی نوشته نشده است. این سند معماری **برنامه‌ریزی‌شده** را توضیح می‌دهد و با هر چرخه به‌روز می‌شود. جزئیات چرخهٔ اول در `cycles/001-core-mvp/design.md` آمده است.
+> کد چرخهٔ ۰۰۱ نوشته و تست شده ولی هنوز روی hermes نصب نشده است. جزئیات طراحی در `cycles/001-core-mvp/design.md` و روش نصب در `deploy/README.md` آمده است.
 
 ## نمای کلی
 
@@ -13,13 +13,14 @@
 
 | بخش | فناوری | مسیر در مخزن | چرا این انتخاب |
 |---|---|---|---|
-| سرور پنل و هماهنگ‌کننده | TypeScript، Node 22، Fastify | `apps/server/` | یک زبان با Agent SDK. سبک و سریع است. |
+| سرور پنل و هماهنگ‌کننده | TypeScript، Node 22، Fastify 5، better-sqlite3، zod | `apps/server/` | یک زبان با Agent SDK. سبک و سریع است. |
 | موتور بات | `@anthropic-ai/claude-agent-sdk` | `apps/server/src/engine/` | ابزارها، مهارت‌ها، MCP، حافظه و ادامهٔ session آماده‌اند. |
 | رابط وب | React + Vite، دوزبانه (فارسی راست‌به‌چپ و انگلیسی) | `apps/web/` | سبک است و فقط فایل ایستا ساخته می‌شود. |
 | انواع مشترک | TypeScript | `packages/shared/` | قرارداد API بین سرور و رابط وب |
 | دیتابیس | SQLite (WAL) | `/var/lib/cwp/cwp.db` | یک کاربر و یک سرور دارد و پشتیبان‌گیری‌اش ساده است. |
 | اعلان و تأیید | Bot API بله و تلگرام، با توکن‌هایی که در پنل وارد می‌شوند | `apps/server/src/notify/` | تأیید از راه دور وقتی پنل باز نیست |
-| استقرار | اسکریپت Incus و systemd | `deploy/` | همان الگوی BaleBot |
+| استقرار | اسکریپت آماده‌سازی hermes، systemd، Incus proxy device و nginx | `deploy/` | همان الگوی BaleBot |
+| پروکسی و kill switch | sing-box (TUN) داخل hermes، ACL شبکهٔ Incus روی میزبان | `deploy/proxy/` | فقط hermes تحت تأثیر است و با قطع پروکسی اینترنتش قطع می‌شود |
 
 ## دادهٔ اصلی
 
@@ -31,7 +32,7 @@
 
 ## تست
 
-- تست واحد و یکپارچگی: `vitest`
+- تست واحد و یکپارچگی: `vitest` در `apps/server/test/` (دستور `pnpm test`). موتور در تست‌ها با `FakeEngine` جایگزین می‌شود.
 - تست پذیرش (اختیاری، پیشنهادی): `playwright-bdd`. سناریوها در `rodo/linux-agent/cycles/*/acceptance.feature` قرار می‌گیرند.
 
 ## قواعدی که همه باید بدانند

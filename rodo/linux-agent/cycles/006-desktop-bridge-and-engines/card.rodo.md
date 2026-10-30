@@ -1,10 +1,8 @@
 ---
 schemaVersion: 2
-id: cmvu8nsrq037nmk017l3fd2tp
-title: کامپیوتر شخصی، Antigravity CLI و پیام صوتی
+title: "کامپیوتر شخصی، Antigravity CLI و پیام صوتی"
 status: todo
 priority: medium
-updatedAt: 1793316704912
 ---
 
 ## Goal
@@ -17,4 +15,4 @@ updatedAt: 1793316704912
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/006-desktop-bridge-and-engines/simple.md) <!-- rodo:ref_cmvu8nsse037pmk01n3qyz8mg -->
+- [توضیح ساده](/rodo/linux-agent/cycles/006-desktop-bridge-and-engines/simple.md)

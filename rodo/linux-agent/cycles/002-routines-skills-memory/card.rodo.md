@@ -1,10 +1,8 @@
 ---
 schemaVersion: 2
-id: cmvu8nsbd036rmk01w2nsepb7
-title: روتین‌ها، مهارت‌ها و حافظهٔ مشترک
+title: "روتین‌ها، مهارت‌ها و حافظهٔ مشترک"
 status: todo
 priority: medium
-updatedAt: 1793316700302
 ---
 
 ## Goal
@@ -17,4 +15,4 @@ updatedAt: 1793316700302
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md) <!-- rodo:ref_cmvu8nsc0036tmk01jdjg849a -->
+- [توضیح ساده](/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md)

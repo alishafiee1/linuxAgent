@@ -1,0 +1,68 @@
+{
+  "id": "cmvu8nska0377mk010p6oew9l",
+  "rev": "35",
+  "updatedAt": 1793316702415,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/004-connectors-and-pages/card.rodo.md",
+  "title": "اتصال به سرویس‌ها و صفحه‌ها",
+  "description": "## Goal\n\nبات‌ها به Gmail، تقویم گوگل و GitHub وصل می‌شوند. ایمیل و پیام همیشه اول به‌صورت پیش‌نویس به شما نشان داده می‌شوند. بات‌ها می‌توانند گزارش یا داشبورد قابل اشتراک هم به شکل «صفحه» بسازند و بعداً به‌روزش کنند.\n\n## Why\n\nکار مستقیم با سرویس‌هایی که هر روز استفاده می‌کنید، با خیال راحت.",
+  "status": "todo",
+  "list": "شروع",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "medium",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [],
+    "forbidden": []
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvu8nskx0379mk01n18rvpwq",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/004-connectors-and-pages/simple.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/004-connectors-and-pages/simple.md",
+    "hash": "sha256:f9b4d86e1d3969a9891f98d48e05229dbea3f21d55cdb609c72da3d5b7816e8f",
+    "updatedAt": 1793320394917
+  },
+  "fieldRevs": {
+    "refs": "33",
+    "test": "32",
+    "dueAt": "32",
+    "hours": "32",
+    "scope": "32",
+    "title": "32",
+    "locked": "32",
+    "status": "32",
+    "startAt": "32",
+    "archived": "32",
+    "priority": "34",
+    "rodoPath": "32",
+    "financial": "32",
+    "simpleDoc": "35",
+    "coverColor": "32",
+    "description": "34"
+  }
+}

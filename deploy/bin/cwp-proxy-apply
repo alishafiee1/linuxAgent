@@ -1,0 +1,32 @@
+#!/bin/sh
+# Root helper (spec R19): validate and apply a sing-box config written by the panel.
+#   sudo -n /usr/local/sbin/cwp-proxy-apply <server-ip> <server-port>  < config.json
+# Exit 3: server not allowed by the host kill switch (listed in /etc/sing-box/allowed-servers).
+# On any failure the previous config is kept and sing-box keeps running with it.
+set -eu
+IP="${1:?ip}"; PORT="${2:?port}"
+ALLOWED=/etc/sing-box/allowed-servers
+CONF=/etc/sing-box/config.json
+SECRET=/etc/sing-box/clash-secret
+SB=/usr/local/bin/sing-box
+
+grep -qxF "$IP:$PORT" "$ALLOWED" 2>/dev/null || { echo "server $IP:$PORT not in $ALLOWED" >&2; exit 3; }
+
+TMP="$(mktemp /etc/sing-box/.new.XXXXXX)"
+trap 'rm -f "$TMP"' EXIT
+head -c 1000000 > "$TMP"
+sed -i "s|__CLASH_SECRET__|$(cat "$SECRET")|" "$TMP"
+chmod 600 "$TMP"
+"$SB" check -c "$TMP" >&2
+
+cp -p "$CONF" "$CONF.prev"
+mv "$TMP" "$CONF"
+trap - EXIT
+systemctl restart sing-box
+sleep 3
+if ! systemctl is-active --quiet sing-box; then
+  echo "sing-box did not start with the new config; restoring the previous one" >&2
+  mv "$CONF.prev" "$CONF"
+  systemctl restart sing-box
+  exit 1
+fi

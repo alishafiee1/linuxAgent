@@ -1,0 +1,9 @@
+#!/bin/sh
+# Runs a command as the `agent` user's session (spec R17). Called by the panel as:
+#   sudo -n -u agent /usr/local/bin/cwp-agent-exec env K=V ... <claude> <args...>
+set -eu
+[ "$(id -un)" = "agent" ] || { echo "cwp-agent-exec: must run as agent" >&2; exit 1; }
+[ "${1:-}" = "env" ] || { echo "cwp-agent-exec: expected 'env' as first argument" >&2; exit 1; }
+export HOME=/home/agent USER=agent LOGNAME=agent
+cd /home/agent/workspace
+exec "$@"

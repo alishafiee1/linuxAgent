@@ -1,0 +1,68 @@
+{
+  "id": "cmvu8nsrq037nmk017l3fd2tp",
+  "rev": "43",
+  "updatedAt": 1793316704912,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/006-desktop-bridge-and-engines/card.rodo.md",
+  "title": "کامپیوتر شخصی، Antigravity CLI و پیام صوتی",
+  "description": "## Goal\n\nبا اجازهٔ شما، بات‌ها روی کامپیوتر خودتان (DESKTOP-667783L) هم دستور اجرا می‌کنند و فایل جابه‌جا می‌کنند، فقط در پوشه‌هایی که مشخص کرده‌اید. موتورهای دیگری مثل Antigravity CLI هم کنار Claude اضافه می‌شوند. اگر بخواهید، جواب‌ها به‌صورت صوتی هم فرستاده می‌شوند.\n\n## Why\n\nبعضی کارها فقط روی کامپیوتر خودتان انجام می‌شوند، و انتخاب موتور باید آزاد باشد.",
+  "status": "todo",
+  "list": "شروع",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "medium",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [],
+    "forbidden": []
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvu8nsse037pmk01n3qyz8mg",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/006-desktop-bridge-and-engines/simple.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/006-desktop-bridge-and-engines/simple.md",
+    "hash": "sha256:8e3bbea6c2e48e3891112a74a09eb2f14d68007d7dc94616ae7b4495e867275f",
+    "updatedAt": 1793320395169
+  },
+  "fieldRevs": {
+    "refs": "41",
+    "test": "40",
+    "dueAt": "40",
+    "hours": "40",
+    "scope": "40",
+    "title": "40",
+    "locked": "40",
+    "status": "40",
+    "startAt": "40",
+    "archived": "40",
+    "priority": "42",
+    "rodoPath": "40",
+    "financial": "40",
+    "simpleDoc": "43",
+    "coverColor": "40",
+    "description": "42"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "id": "cmvu8nsbd036rmk01w2nsepb7",
+  "rev": "27",
+  "updatedAt": 1793316700302,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/002-routines-skills-memory/card.rodo.md",
+  "title": "روتین‌ها، مهارت‌ها و حافظهٔ مشترک",
+  "description": "## Goal\n\nبات‌ها کارها را در زمان مشخص خودکار تکرار کنند، مثل گزارش صبح ساعت ۸ یا خبر دادن وقتی اتفاقی می‌افتد. هر روش کار یک بار به‌صورت «مهارت» ذخیره شود تا همهٔ بات‌ها از آن استفاده کنند. حافظهٔ هر بات و حافظهٔ مشترک بین بات‌ها هم در پنل دیده و ویرایش شود.\n\n## Why\n\nکار شبانه‌روزی بدون دخالت، و یک بار یاد دادن به جای تکرار برای هر بات.",
+  "status": "todo",
+  "list": "شروع",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "medium",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [],
+    "forbidden": []
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvu8nsc0036tmk01jdjg849a",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md",
+    "hash": "sha256:166157e8841bcd55078744417bf651c48df85ab08547200955105f7da599b9a6",
+    "updatedAt": 1793320394590
+  },
+  "fieldRevs": {
+    "refs": "25",
+    "test": "24",
+    "dueAt": "24",
+    "hours": "24",
+    "scope": "24",
+    "title": "24",
+    "locked": "24",
+    "status": "24",
+    "startAt": "24",
+    "archived": "24",
+    "priority": "26",
+    "rodoPath": "24",
+    "financial": "24",
+    "simpleDoc": "27",
+    "coverColor": "24",
+    "description": "26"
+  }
+}
