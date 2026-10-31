@@ -6,6 +6,7 @@
 // Put the device token from the panel in the CWP_BRIDGE_TOKEN environment variable.
 // It only connects out; nothing on this computer is exposed. Only the folders named here are
 // reachable, whatever the panel asks. Stop it with Ctrl+C and the bots lose access at once.
+/* global process, console, fetch, AbortSignal, setTimeout */
 import { exec } from "node:child_process";
 import { readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";

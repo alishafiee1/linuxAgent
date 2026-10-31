@@ -45,6 +45,14 @@ through `/usr/local/sbin/cwp-proxy-apply`, which only accepts servers listed in
 `/etc/sing-box/allowed-servers` (the host kill switch must allow them too). For a new server IP,
 run on the host first: `deploy/proxy/allow-proxy.sh <ip> <port>`.
 
+## New in this version
+
+Updating adds four database tables and these folders under `/home/agent`: `shared/`, `shared/skills/`, `browser/`. It also installs the `chromium` package (`CWP_CHROMIUM` overrides its path). No new secret is needed. Take a snapshot first (step 1), because the database migration only goes forward.
+
+- **Public paths outside login:** `/p/<secret>` (shared pages), `/hook/<secret>` (routine webhooks), `/oauth/google/callback`, `/bridge/*` (device token). nginx needs no change.
+- **Desktop bridge:** copy `deploy/desktop-bridge/bridge.mjs` to the computer and run the command the panel shows under Settings. It needs Node 18 or newer.
+- **Google:** create a Web OAuth client and enter the redirect address shown in Settings.
+
 ## Rollback
 
 - Stop the panel: `systemctl disable --now cwp.service cwp-backup.timer` (in hermes).
