@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { api, ApiError } from "./api";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
+import { IconActivity, IconChat, IconFolder, IconGauge, IconGlobe, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
 
@@ -15,6 +16,14 @@ export interface Status {
 }
 
 type View = "chat" | "approvals" | "usage" | "files" | "settings";
+
+const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
+  chat: IconChat,
+  approvals: IconShield,
+  usage: IconGauge,
+  files: IconFolder,
+  settings: IconSliders,
+};
 
 function useLanguage(): [UiLanguage, (l: UiLanguage) => void] {
   const [lang, setLang] = useState<UiLanguage>(() => (localStorage.getItem("cwp.lang") === "en" ? "en" : "fa"));
@@ -42,7 +51,7 @@ export function App() {
   }, []);
 
   const ctx = useMemo(() => ({ t: dictionaries[lang], lang, setLang }), [lang, setLang]);
-  return <I18n.Provider value={ctx}>{me === undefined ? null : me === null ? <Login onDone={setMe} /> : <Shell onLogout={() => setMe(null)} />}</I18n.Provider>;
+  return <I18n.Provider value={ctx}>{me === undefined ? <div className="empty">…</div> : me === null ? <Login onDone={setMe} /> : <Shell onLogout={() => setMe(null)} />}</I18n.Provider>;
 }
 
 function Login({ onDone }: { onDone: (m: Me) => void }) {
@@ -65,7 +74,12 @@ function Login({ onDone }: { onDone: (m: Me) => void }) {
   return (
     <div className="login">
       <form className="card" onSubmit={submit}>
-        <h1 style={{ margin: 0, fontSize: 20 }}>{t.appName}</h1>
+        <div className="login-head">
+          <span className="brand-mark lg">
+            <IconTerminal size={22} />
+          </span>
+          <h1>{t.appName}</h1>
+        </div>
         <label>
           {t.username}
           <input autoComplete="username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
@@ -94,6 +108,7 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
   return (
     <span className="pill" title={proxy.current ? `${proxy.current.scheme}://${proxy.current.host}:${proxy.current.port}` : ""}>
       <span className={`dot ${cls}`} />
+      <IconGlobe size={13} />
       {t.proxy}: {t[proxy.state]}
       {proxy.state === "connected" && proxy.latencyMs !== null && ` · ${proxy.latencyMs} ${t.ms}`}
     </span>
@@ -104,11 +119,18 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, lang, setLang } = useT();
   const [view, setView] = useState<View>("chat");
   const [bots, setBots] = useState<Bot[]>([]);
-  const [botId, setBotId] = useState<string | null>(null);
+  const [botId, setBotId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("cwp.bot");
+    } catch {
+      return null;
+    }
+  });
   const [status, setStatus] = useState<Status | null>(null);
   const [activityTick, setActivityTick] = useState(0);
   const [dialog, setDialog] = useState<{ bot: Bot | null } | null>(null);
   const [menu, setMenu] = useState<{ bot: Bot; x: number; y: number } | null>(null);
+  const [drawer, setDrawer] = useState(false);
 
   const loadBots = useCallback(async () => {
     const list = await api.get<Bot[]>("/api/bots");
@@ -154,30 +176,52 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  useEffect(() => {
+    try {
+      if (botId) localStorage.setItem("cwp.bot", botId);
+    } catch {
+      // private mode
+    }
+  }, [botId]);
+
   const bot = bots.find((b) => b.id === botId) ?? null;
   const runs = status?.runs;
 
   return (
     <div className="layout">
       <header className="topbar">
-        <span className="brand">{t.appName}</span>
+        <button className="ghost icon-btn menu-btn" aria-label={t.menu} onClick={() => setDrawer(true)}>
+          <IconMenu size={19} />
+        </button>
+        <span className="brand">
+          <span className="brand-mark">
+            <IconTerminal size={14} />
+          </span>
+          {t.appName}
+        </span>
         <nav className="nav">
-          {(["chat", "approvals", "usage", "files", "settings"] as View[]).map((v) => (
-            <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
-              {t[v]}
-              {v === "approvals" && status && status.pendingApprovals > 0 && ` (${status.pendingApprovals})`}
-            </button>
-          ))}
+          {(["chat", "approvals", "usage", "files", "settings"] as View[]).map((v) => {
+            const NavIcon = NAV_ICONS[v];
+            return (
+              <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
+                <NavIcon size={15} />
+                <span>{t[v]}</span>
+                {v === "approvals" && status && status.pendingApprovals > 0 && ` (${status.pendingApprovals})`}
+              </button>
+            );
+          })}
         </nav>
         <span className="spacer" />
         {runs && (
-          <span className="pill">
+          <span className="pill runs-pill">
+            <IconActivity size={13} />
             {t.running}: {runs.running} · {t.queued}: {runs.queued}
           </span>
         )}
         {status && status.pendingApprovals > 0 && (
-          <button className="pill" style={{ color: "var(--warn)" }} onClick={() => setView("approvals")}>
+          <button className="pill warn-pill" onClick={() => setView("approvals")}>
             <span className="dot warn" />
+            <IconShield size={13} />
             {t.pending}: {status.pendingApprovals}
           </button>
         )}
@@ -197,26 +241,43 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         </button>
       </header>
 
-      <aside className="sidebar">
+      <div className={`scrim${drawer ? " show" : ""}`} onClick={() => setDrawer(false)} />
+      <aside className={`sidebar${drawer ? " open" : ""}`}>
         <h2>{t.bots}</h2>
         {bots.map((b) => (
-          <button
-            key={b.id}
-            className={`bot-item ${b.id === botId && view === "chat" ? "active" : ""}`}
-            onClick={() => {
-              setBotId(b.id);
-              setView("chat");
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setMenu({ bot: b, x: e.clientX, y: e.clientY });
-            }}
-          >
-            <span className="avatar">{b.name.slice(0, 1).toUpperCase()}</span>
-            <span>{b.name}</span>
-          </button>
+          <div key={b.id} className="bot-row">
+            <button
+              className={`bot-item ${b.id === botId && view === "chat" ? "active" : ""}`}
+              onClick={() => {
+                setBotId(b.id);
+                setView("chat");
+                setDrawer(false);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu({ bot: b, x: e.clientX, y: e.clientY });
+              }}
+            >
+              <span className="avatar">{b.name.slice(0, 1).toUpperCase()}</span>
+              <span className="bot-name">{b.name}</span>
+            </button>
+            <button
+              className="ghost bot-more"
+              aria-label={`${t.edit}: ${b.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                setMenu({ bot: b, x: r.left, y: r.bottom });
+              }}
+            >
+              ⋯
+            </button>
+          </div>
         ))}
-        <button onClick={() => setDialog({ bot: null })}>+ {t.newBot}</button>
+        <button className="add-bot" onClick={() => setDialog({ bot: null })}>
+          <IconPlus size={15} />
+          {t.newBot}
+        </button>
       </aside>
 
       <main className="main">
@@ -235,9 +296,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       </main>
 
       {menu && (
-        <div className="menu card" style={{ top: menu.y, left: menu.x }}>
-          <button onClick={() => setDialog({ bot: menu.bot })}>{t.edit}</button>
+        <div className="menu card" style={{ top: menu.y, left: Math.max(8, Math.min(menu.x, window.innerWidth - 178)) }}>
+          <button onClick={() => setDialog({ bot: menu.bot })}>
+            <IconPencil size={15} />
+            {t.edit}
+          </button>
           <button className="danger" onClick={() => void deleteBot(menu.bot)}>
+            <IconTrash size={15} />
             {t.delete}
           </button>
         </div>

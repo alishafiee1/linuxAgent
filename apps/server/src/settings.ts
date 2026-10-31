@@ -2,7 +2,8 @@ import type { PublicSettings, SettingsInput, UiLanguage } from "@linux-agent/sha
 import type { Db } from "./db.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
 
-export const DEFAULT_MODEL = "claude-opus-5-5";
+// Newest model Claude Code 2.1.112 may use; that version is pinned because the server CPU has no AVX.
+export const DEFAULT_MODEL = "claude-opus-4-8";
 export const DEFAULT_MAX_CONCURRENT_RUNS = 3;
 
 /** Key/value settings. Keys ending in `.secret` are stored encrypted and never leave the server. */

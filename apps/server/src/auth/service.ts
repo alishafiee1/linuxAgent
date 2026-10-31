@@ -1,9 +1,8 @@
-import { hash, verify } from "@node-rs/argon2";
 import { authenticator } from "otplib";
 import { randomUUID } from "node:crypto";
 import type { Db } from "../db.js";
 import { now } from "../db.js";
-import { decrypt, encrypt, randomToken } from "../lib/crypto.js";
+import { decrypt, encrypt, hashPassword, randomToken, verifyPassword } from "../lib/crypto.js";
 
 export const SESSION_DAYS = 7;
 export const LOCK_FAILURES = 5;
@@ -34,7 +33,7 @@ export class AuthService {
     const secret = authenticator.generateSecret();
     this.db
       .prepare("INSERT INTO users (id, username, password_hash, totp_secret_enc, created_at) VALUES (?, ?, ?, ?, ?)")
-      .run(randomUUID(), username, await hash(password), encrypt(this.masterKey, secret), now());
+      .run(randomUUID(), username, await hashPassword(password), encrypt(this.masterKey, secret), now());
     return { otpauthUrl: authenticator.keyuri(username, "linuxAgent", secret), secret };
   }
 
@@ -50,7 +49,7 @@ export class AuthService {
       .prepare("SELECT id, password_hash, totp_secret_enc FROM users WHERE username = ?")
       .get(username) as { id: string; password_hash: string; totp_secret_enc: string } | undefined;
     let ok = false;
-    if (user && (await verify(user.password_hash, password))) {
+    if (user && (await verifyPassword(user.password_hash, password))) {
       const secret = decrypt(this.masterKey, user.totp_secret_enc);
       ok = authenticator.check(code.trim(), secret);
     }

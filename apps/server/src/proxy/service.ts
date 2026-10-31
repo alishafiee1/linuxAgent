@@ -10,6 +10,8 @@ import { buildSingBoxConfig, LinkError, parseLink, parseSubscription, type Parse
 export const MSG_NOT_ALLOWED_BY_KILLSWITCH =
   "این سرور پروکسی در kill switch میزبان مجاز نیست؛ اول روی میزبان deploy/proxy/allow-proxy.sh را اجرا کنید.";
 export const POLL_MS = 15_000;
+/** A slow proxy misses single probes, so only this many misses in a row count as disconnected. */
+export const MAX_PROBE_MISSES = 3;
 const PROXY_TYPES = new Set(["VLESS", "VMess", "Trojan", "Shadowsocks", "vless", "vmess", "trojan", "shadowsocks"]);
 
 export interface ProxyDeps {
@@ -44,6 +46,7 @@ export class ProxyService {
   private timer: NodeJS.Timeout | null = null;
   private listeners: ((s: ProxyStatus) => void)[] = [];
   private fetchFn: typeof fetch;
+  private probeMisses = 0;
 
   constructor(private d: ProxyDeps) {
     this.fetchFn = d.fetchFn ?? fetch;
@@ -96,7 +99,7 @@ export class ProxyService {
     const secret = this.secret();
     const res = await this.fetchFn(`${this.d.clashApiUrl}${path}`, {
       headers: secret ? { authorization: `Bearer ${secret}` } : {},
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`clash ${res.status}`);
     return (await res.json()) as T;
@@ -112,11 +115,14 @@ export class ProxyService {
       const name = Object.keys(proxies).find((k) => PROXY_TYPES.has(proxies[k]!.type));
       if (!name) throw new Error("no proxy outbound");
       try {
-        const r = await this.clash<{ delay: number }>(`/proxies/${encodeURIComponent(name)}/delay?timeout=5000&url=${encodeURIComponent("https://www.gstatic.com/generate_204")}`);
+        const r = await this.clash<{ delay: number }>(`/proxies/${encodeURIComponent(name)}/delay?timeout=10000&url=${encodeURIComponent("https://www.gstatic.com/generate_204")}`);
         state = "connected";
         latencyMs = r.delay;
+        this.probeMisses = 0;
       } catch {
-        state = "disconnected";
+        this.probeMisses++;
+        state = this.probeMisses >= MAX_PROBE_MISSES ? "disconnected" : prev;
+        latencyMs = this.status.latencyMs;
       }
     } catch {
       // sing-box itself is not answering: restarting (connecting) or down.

@@ -16,7 +16,7 @@ const config = loadConfig();
 const db = openDb(config.dbPath);
 const settings = new SettingsStore(db, config.masterKey);
 const auth = new AuthService(db, config.masterKey);
-const bots = new BotService(db, config.botsDir);
+const bots = new BotService(db, config.botsDir, config.agentExec);
 const approvals = new ApprovalService(db);
 const events = new EventStore(db);
 const log = (m: string): void => console.log(`[cwp] ${m}`);

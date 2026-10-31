@@ -18,7 +18,7 @@ switch; see `deploy/proxy/README.md`. No secrets live in this repo.
 1. **Snapshot first (host):** `incus snapshot create hermes pre-cwp-$(date +%Y%m%d)`
 2. **Get the code into hermes:** `git clone` this repo (or copy it) to e.g. `/root/linuxAgent`.
 3. **Provision (in hermes, as root):** `bash /root/linuxAgent/deploy/provision-hermes.sh`
-4. **Claude login (in hermes):** `npm i -g @anthropic-ai/claude-code`, then `sudo -iu agent claude` and run `/login` with Masoud's subscription. Check: `sudo -iu agent claude -p "say ok"`.
+4. **Claude login (in hermes):** `npm i -g @anthropic-ai/claude-code@2.1.112` (last Node build; the CPU has no AVX, newer native builds crash; set `CWP_CLAUDE_PATH` in `/etc/cwp/env` to its `cli.js` and keep auto-update off), then `sudo -iu agent claude` and run `/login` with Masoud's subscription. Check: `sudo -iu agent claude -p "say ok"`.
 5. **Panel user (in hermes):**
    `cd /opt/cwp && sudo -u panel CWP_ENV_FILE=/etc/cwp/env node apps/server/dist/cli.js user:init masoud`
    Add the printed key to an authenticator app, then clear the terminal.
@@ -26,7 +26,8 @@ switch; see `deploy/proxy/README.md`. No secrets live in this repo.
    publishes it on the docker bridge gateway, where `rodo-proxy-1` can reach it:
    `incus config device add hermes cwp-web proxy listen=tcp:172.18.0.1:8788 connect=tcp:127.0.0.1:8787 bind=host`
    Check from the host: `curl -sI http://172.18.0.1:8788/ | head -1`.
-7. **Domain + TLS (host):** point `agent.roditeam.ir` at the server, get a certificate the same way
+7. **Firewall (host):** `sudo ufw allow from 172.18.0.0/16 to 172.18.0.1 port 8788 proto tcp comment 'cwp panel from rodo nginx'`
+   **Domain + TLS (host):** point `agent.roditeam.ir` at the server, get a certificate the same way
    as `node.roditeam.ir` (BaleBot phase 5), add `deploy/nginx/agent.roditeam.ir.conf` to
    `/opt/rodo/deploy/nginx.conf`, and reload nginx in `rodo-proxy-1` (`nginx -t` first).
 8. **First login:** open https://agent.roditeam.ir, sign in, then in Settings enter the Bale and

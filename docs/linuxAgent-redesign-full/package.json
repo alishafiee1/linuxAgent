@@ -1,0 +1,12 @@
+{
+  "name": "linux-agent",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @linux-agent/web",
+    "typecheck": "npm run typecheck -w @linux-agent/web"
+  }
+}

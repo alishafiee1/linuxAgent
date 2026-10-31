@@ -1,3 +1,4 @@
+import compress from "@fastify/compress";
 import cookie from "@fastify/cookie";
 import fastifyStatic from "@fastify/static";
 import type { BotInput, FileEntry, RunEvent, SettingsInput, UsageReport } from "@linux-agent/shared";
@@ -93,6 +94,8 @@ function resolveInRoot(rootDir: string, rel: string): string {
 export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, bodyLimit: 1_000_000 });
   await app.register(cookie);
+  // The server link is slow; hijacked SSE replies skip this hook, so live output is not buffered.
+  await app.register(compress);
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, message: err.message });
@@ -332,7 +335,15 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
 
   // --- web app
   if (d.config.webDist) {
-    await app.register(fastifyStatic, { root: d.config.webDist, wildcard: false });
+    await app.register(fastifyStatic, {
+      root: d.config.webDist,
+      wildcard: false,
+      cacheControl: false,
+      setHeaders: (res, path) => {
+        // Vite puts a content hash in every asset name.
+        if (path.includes(`${sep}assets${sep}`)) res.setHeader("cache-control", "public, max-age=31536000, immutable");
+      },
+    });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith("/api/")) return reply.status(404).send({ error: "not_found", message: "پیدا نشد." });
       return reply.sendFile("index.html");

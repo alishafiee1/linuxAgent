@@ -9,7 +9,7 @@ A single-user web panel (Fastify + React) running inside one Incus container. Th
 ## 2. Rules
 
 ### Access
-- **R1** Exactly one user. Login needs username, password (argon2id) and a 6-digit TOTP code. On success the server sets an `httpOnly`, `Secure`, `SameSite=Strict` session cookie valid for 7 days. After 5 failed logins in 15 minutes from any IP, login is refused for 15 minutes with the message `ورود موقتاً قفل شد؛ ۱۵ دقیقهٔ دیگر دوباره امتحان کنید.`
+- **R1** Exactly one user. Login needs username, password (scrypt) and a 6-digit TOTP code. On success the server sets an `httpOnly`, `Secure`, `SameSite=Strict` session cookie valid for 7 days. After 5 failed logins in 15 minutes from any IP, login is refused for 15 minutes with the message `ورود موقتاً قفل شد؛ ۱۵ دقیقهٔ دیگر دوباره امتحان کنید.`
 - **R2** The first user, with a password and TOTP secret, is created only by a CLI command run on the server (`pnpm cwp user:init`). The panel has no sign-up page.
 
 ### Bots
@@ -118,6 +118,9 @@ No `acceptance.feature` in this cycle (manual end-to-end check is the last card 
 
 ## Decisions
 
+- The default model is claude-opus-4-8, because the pinned Claude Code 2.1.112 cannot use claude-opus-5-5 (the API requires 2.1.280 or newer, and those builds need AVX).
+- The proxy shows disconnected only after 3 missed probes in a row, because a single slow probe blocked queued runs.
+- Passwords use Node's built-in scrypt instead of argon2, and Claude Code is pinned to 2.1.112 (last Node build). Because the server CPU (Phenom II) has no AVX or SSE4.1, so prebuilt native code crashes with "Illegal instruction".
 - One Incus container holds panel and agents, with two Linux users (`panel`, `agent`). Because resources are limited and a shared "cloud computer" is wanted; user separation keeps panel secrets and DB out of the agents' reach.
 - Approvals are enforced in `canUseTool`, not in the prompt. Because prompt injection can override instructions but not code.
 - SQLite instead of Postgres (default, not asked). Because there is a single user and a single server, and backups are a file copy.

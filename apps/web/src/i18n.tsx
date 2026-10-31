@@ -8,6 +8,7 @@ const fa = {
   password: "رمز",
   code: "کد ۶ رقمی",
   logout: "خروج",
+  menu: "منو",
   bots: "بات‌ها",
   newBot: "بات جدید",
   edit: "ویرایش",
@@ -57,6 +58,28 @@ const fa = {
   maxConcurrent: "حداکثر اجرای هم‌زمان",
   language: "زبان",
   notifications: "اعلان و تأیید از راه دور",
+  notifyHelpLabel: "راهنمای ساخت ربات و پیدا کردن شناسهٔ چت",
+  notifyHelp: [
+    {
+      title: "بله",
+      steps: [
+        "در بله ربات @botfather را باز کن، یک ربات تازه بساز و توکنش را کپی کن.",
+        "ربات خودت را باز کن و شروع را بزن؛ وگرنه نمی‌تواند به تو پیام بدهد.",
+        "ربات @baleuserinfobot را باز کن؛ عددی که نشان می‌دهد شناسهٔ چت توست.",
+        "توکن و شناسه را اینجا بگذار، «ذخیره» و بعد «آزمایش» را بزن.",
+      ],
+    },
+    {
+      title: "تلگرام",
+      steps: [
+        "در تلگرام ربات @BotFather را باز کن، با newbot یک ربات بساز و توکنش را کپی کن.",
+        "ربات خودت را باز کن و Start را بزن؛ وگرنه نمی‌تواند به تو پیام بدهد.",
+        "ربات @userinfobot را باز کن؛ عدد جلوی Id شناسهٔ چت توست.",
+        "توکن و شناسه را اینجا بگذار، «ذخیره» و بعد «آزمایش» را بزن.",
+      ],
+    },
+  ],
+  notifyHelpToken: "توکن شکلی مثل ⁦123456789:ABCdef⁩ دارد و آدرس نیست.",
   token: "توکن بات",
   chatId: "شناسهٔ چت",
   test: "آزمایش",
@@ -104,6 +127,7 @@ const en: Dict = {
   password: "Password",
   code: "6-digit code",
   logout: "Sign out",
+  menu: "Menu",
   bots: "Bots",
   newBot: "New bot",
   edit: "Edit",
@@ -153,6 +177,28 @@ const en: Dict = {
   maxConcurrent: "Max concurrent runs",
   language: "Language",
   notifications: "Remote notifications & approvals",
+  notifyHelpLabel: "How to create a bot and find your chat ID",
+  notifyHelp: [
+    {
+      title: "Bale",
+      steps: [
+        "In Bale, open @botfather, create a new bot and copy its token.",
+        "Open your new bot and press Start; otherwise it cannot message you.",
+        "Open @baleuserinfobot; the number it shows is your chat ID.",
+        "Enter the token and chat ID here, press Save, then Test.",
+      ],
+    },
+    {
+      title: "Telegram",
+      steps: [
+        "In Telegram, open @BotFather, create a bot with newbot and copy its token.",
+        "Open your new bot and press Start; otherwise it cannot message you.",
+        "Open @userinfobot; the number next to Id is your chat ID.",
+        "Enter the token and chat ID here, press Save, then Test.",
+      ],
+    },
+  ],
+  notifyHelpToken: "A token looks like 123456789:ABCdef and is not a link.",
   token: "Bot token",
   chatId: "Chat ID",
   test: "Test",

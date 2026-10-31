@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 const PREFIX = "v1";
 
@@ -27,4 +27,30 @@ export function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
   return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+// scrypt from Node itself: the server CPU has no AVX/SSE4, so prebuilt native hashers crash on it.
+const SCRYPT = { N: 2 ** 17, r: 8, p: 1, maxmem: 256 * 1024 * 1024 };
+const SCRYPT_KEYLEN = 32;
+
+function scryptAsync(password: string, salt: Buffer, params: typeof SCRYPT): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, SCRYPT_KEYLEN, params, (err, key) => (err ? reject(err) : resolve(key)));
+  });
+}
+
+/** Output: `scrypt.<N>.<r>.<p>.<salt>.<key>` (base64url salt and key). */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16);
+  const key = await scryptAsync(password, salt, SCRYPT);
+  return ["scrypt", SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString("base64url"), key.toString("base64url")].join(".");
+}
+
+export async function verifyPassword(stored: string, password: string): Promise<boolean> {
+  const [scheme, N, r, p, salt, key] = stored.split(".");
+  if (scheme !== "scrypt" || !N || !r || !p || !salt || !key) return false;
+  const params = { N: Number(N), r: Number(r), p: Number(p), maxmem: SCRYPT.maxmem };
+  const actual = await scryptAsync(password, Buffer.from(salt, "base64url"), params);
+  const expected = Buffer.from(key, "base64url");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }

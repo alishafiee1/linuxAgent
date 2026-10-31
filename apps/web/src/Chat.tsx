@@ -1,9 +1,21 @@
 import type { Bot, Conversation, Run, RunEvent } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api } from "./api";
+import { IconActivity, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 
 const ACTIVE = new Set(["queued", "running", "waiting_approval", "waiting_limit"]);
+
+const STATE_ICONS: Record<string, (p: IconProps) => ReturnType<typeof IconBot>> = {
+  queued: IconClock,
+  running: IconActivity,
+  waiting_approval: IconShield,
+  waiting_limit: IconHourglass,
+  done: IconCheckCircle,
+  failed: IconXCircle,
+  interrupted: IconPause,
+  cancelled: IconStop,
+};
 
 export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) {
   const { t } = useT();
@@ -13,6 +25,26 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
+  const messages = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+
+  // Follow new output unless the user scrolled up to read.
+  useEffect(() => {
+    const el = messages.current;
+    if (!el) return;
+    const follow = new MutationObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    follow.observe(el, { childList: true, subtree: true, characterData: true });
+    const onScroll = () => {
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => {
+      follow.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   const loadConversations = useCallback(async () => {
     const list = await api.get<Conversation[]>(`/api/bots/${bot.id}/conversations`);
@@ -53,6 +85,7 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
       }
       await api.post(`/api/conversations/${id}/messages`, { text });
       setText("");
+      stick.current = true;
       await loadRuns();
       setTimeout(() => bottom.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
@@ -81,9 +114,18 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
             </option>
           ))}
         </select>
-        <button onClick={() => void newConversation()}>+ {t.newConversation}</button>
+        <button onClick={() => void newConversation()}>
+          <IconPlus size={14} />
+          {t.newConversation}
+        </button>
       </div>
-      <div className="messages">
+      <div className="messages" ref={messages}>
+        {runs.length === 0 && (
+          <div className="empty chat-empty">
+            <IconBot size={30} />
+            <p>{t.messagePlaceholder}</p>
+          </div>
+        )}
         {runs.map((r) => (
           <RunView key={r.id} run={r} onChanged={loadRuns} />
         ))}
@@ -92,8 +134,9 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
       <div className="composer">
         <form onSubmit={send}>
           <textarea rows={2} value={text} placeholder={t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
-          <button className="primary" disabled={!text.trim()}>
+          <button className="primary send-btn" disabled={!text.trim()}>
             {t.send}
+            <IconSend size={15} />
           </button>
         </form>
         {error && <div className="err" style={{ textAlign: "center" }}>{error}</div>}
@@ -132,8 +175,12 @@ function ToolCard({ name, input, result, isError }: { name: string; input: unkno
   return (
     <details className={`tool card ${isError ? "error" : ""}`}>
       <summary>
+        <span className="tool-ic">
+          <IconTerminal size={13} />
+        </span>
         <code>{name}</code>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", direction: "ltr" }}>{summary.slice(0, 120)}</span>
+        <span className="tool-sum" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", direction: "ltr" }}>{summary.slice(0, 120)}</span>
+        <IconChevronDown size={14} className="tool-chev" />
       </summary>
       <div className="body">
         <div className="muted">{t.tool}</div>
@@ -164,15 +211,22 @@ function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: st
     }
   };
   return (
-    <div className="approval">
-      <strong>{payload.reason}</strong>
+    <div className="approval" role="alert">
+      <div className="approval-head">
+        <span className="approval-ic">
+          <IconShield size={18} />
+        </span>
+        <strong>{payload.reason}</strong>
+      </div>
       <pre>{JSON.stringify(payload.input, null, 2)}</pre>
       {!done && (
-        <div className="row">
+        <div className="row approval-actions">
           <button className="primary" onClick={() => void decide(true)}>
+            <IconCheck size={16} />
             {t.allow}
           </button>
           <button className="danger" onClick={() => void decide(false)}>
+            <IconX size={16} />
             {t.deny}
           </button>
         </div>
@@ -193,6 +247,11 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
   const decided = new Set(events.filter((e) => e.type === "approval" && (e.payload as { state: string }).state !== "pending").map((e) => (e.payload as { approvalId: string }).approvalId));
   const lastState = [...events].reverse().find((e) => e.type === "state")?.payload as { state: string; message?: string | null; limitResetAt?: string | null } | undefined;
   const state = lastState?.state ?? run.state;
+  const [error, setError] = useState("");
+  const act = (action: "cancel" | "continue") => {
+    setError("");
+    api.post(`/api/runs/${run.id}/${action}`).then(onChanged, (e: Error) => setError(e.message));
+  };
 
   return (
     <>
@@ -244,25 +303,32 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
         }
       })}
       <div className={`msg state ${state}`}>
-        {t.states[state] ?? state}
-        {state === "waiting_limit" && lastState?.limitResetAt && ` · ${t.limitBanner} ${new Date(lastState.limitResetAt).toLocaleTimeString()}`}
-        {lastState?.message ? ` · ${lastState.message}` : ""}
-        {ACTIVE.has(state) && (
-          <>
-            {" "}
-            <button className="ghost danger" onClick={() => void api.post(`/api/runs/${run.id}/cancel`).then(onChanged)}>
+        <span className="chip">
+          {(() => {
+            const StateIcon = STATE_ICONS[state] ?? IconClock;
+            return <StateIcon size={13} />;
+          })()}
+          <span className="chip-label">
+            {t.states[state] ?? state}
+            {state === "waiting_limit" && lastState?.limitResetAt && ` · ${t.limitBanner} ${new Date(lastState.limitResetAt).toLocaleTimeString()}`}
+            {lastState?.message ? ` · ${lastState.message}` : ""}
+          </span>
+        </span>
+        <span className="state-actions">
+          {ACTIVE.has(state) && (
+            <button className="ghost danger" onClick={() => act("cancel")}>
+              <IconStop size={13} />
               {t.stop}
             </button>
-          </>
-        )}
-        {(state === "interrupted" || state === "failed") && (
-          <>
-            {" "}
-            <button className="ghost" onClick={() => void api.post(`/api/runs/${run.id}/continue`).then(onChanged)}>
+          )}
+          {(state === "interrupted" || state === "failed" || state === "cancelled") && (
+            <button className="ghost" onClick={() => act("continue")}>
+              <IconPlay size={13} className="icon-flip" />
               {t.continue}
             </button>
-          </>
-        )}
+          )}
+        </span>
+        {error && <div className="err">{error}</div>}
       </div>
     </>
   );

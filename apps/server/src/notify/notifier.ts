@@ -166,6 +166,7 @@ export class Notifier {
 
   private async poll(name: ChannelName, api: BotApi, chatId: string, signal: AbortSignal): Promise<void> {
     let offset = 0;
+    let delay = 5000;
     await api.call("deleteWebhook", {}).catch(() => {});
     while (!signal.aborted) {
       try {
@@ -174,10 +175,13 @@ export class Notifier {
           offset = u.update_id + 1;
           await this.handleUpdate(name, api, chatId, u);
         }
+        delay = 5000;
       } catch (e) {
         if (signal.aborted) return;
         this.log(`poll ${name}: ${(e as Error).message}`);
-        await new Promise((r) => setTimeout(r, 5000));
+        // A wrong token fails instantly and forever, so back off instead of hammering the API.
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(delay * 2, 300_000);
       }
     }
   }

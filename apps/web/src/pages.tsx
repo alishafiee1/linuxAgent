@@ -1,6 +1,7 @@
 import type { Approval, FileEntry, ProxyNode, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
+import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconGlobe, IconInbox, IconShield, IconSliders, IconX } from "./icons";
 import { useT } from "./i18n";
 
 export function ApprovalsPage({ activityTick }: { activityTick: number }) {
@@ -25,11 +26,19 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
     <div className="page">
       <h2>{t.approvals}</h2>
       {error && <div className="err">{error}</div>}
-      {pending.length === 0 && <p className="muted">{t.noPending}</p>}
+      {pending.length === 0 && (
+        <div className="empty">
+          <IconInbox size={30} />
+          <p>{t.noPending}</p>
+        </div>
+      )}
       <div style={{ display: "grid", gap: 10 }}>
         {pending.map((a) => (
-          <div key={a.id} className="approval">
-            <div className="row">
+          <div key={a.id} className="approval" role="alert">
+            <div className="approval-head">
+              <span className="approval-ic">
+                <IconShield size={18} />
+              </span>
               <strong>{a.botName}</strong>
               <span className="muted">· {a.reason}</span>
               <span className="spacer" />
@@ -38,11 +47,13 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
             <pre>
               {a.toolName} {JSON.stringify(a.input, null, 2)}
             </pre>
-            <div className="row">
+            <div className="row approval-actions">
               <button className="primary" onClick={() => void decide(a.id, true)}>
+                <IconCheck size={16} />
                 {t.allow}
               </button>
               <button className="danger" onClick={() => void decide(a.id, false)}>
+                <IconX size={16} />
                 {t.deny}
               </button>
             </div>
@@ -89,7 +100,10 @@ export function UsagePage() {
         </div>
       )}
       {report.rows.length === 0 ? (
-        <p className="muted">{t.empty}</p>
+        <div className="empty">
+          <IconGauge size={30} />
+          <p>{t.empty}</p>
+        </div>
       ) : (
         <table>
           <thead>
@@ -164,8 +178,19 @@ export function FilesPage() {
             <tr>
               <td colSpan={3}>
                 <button className="ghost" onClick={() => setPath(up)}>
-                  .. {t.up}
+                  <IconArrowUp size={14} />
+                  {t.up}
                 </button>
+              </td>
+            </tr>
+          )}
+          {entries.length === 0 && !error && (
+            <tr>
+              <td colSpan={3}>
+                <div className="empty slim">
+                  <IconFolder size={26} />
+                  <p>{t.empty}</p>
+                </div>
               </td>
             </tr>
           )}
@@ -174,7 +199,8 @@ export function FilesPage() {
               <td>
                 {e.type === "dir" ? (
                   <button className="ghost" onClick={() => setPath(e.path)}>
-                    📁 {e.name}
+                    <IconFolder size={15} />
+                    {e.name}
                   </button>
                 ) : (
                   <span dir="ltr">{e.name}</span>
@@ -183,7 +209,10 @@ export function FilesPage() {
               <td className="num muted">{e.type === "file" ? `${(e.size / 1024).toFixed(1)} KB` : ""}</td>
               <td>
                 {e.type === "file" && (
-                  <a href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>{t.download}</a>
+                  <a className="dl" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
+                    <IconDownload size={14} />
+                    {t.download}
+                  </a>
                 )}
               </td>
             </tr>
@@ -271,7 +300,10 @@ function ProxySection({ proxy, onChanged }: { proxy: ProxyStatus | null; onChang
   };
   return (
     <div className="card section">
-      <h3>{t.proxy}</h3>
+      <h3>
+        <IconGlobe size={16} />
+        {t.proxy}
+      </h3>
       {proxy && (
         <div className="row">
           <span className="pill">
@@ -335,22 +367,33 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
   const { t, setLang } = useT();
   const [s, setS] = useState<PublicSettings | null>(null);
   const [msg, setMsg] = useState("");
-  const load = useCallback(() => api.get<PublicSettings>("/api/settings").then(setS, () => {}), []);
+  const [error, setError] = useState("");
+  const [help, setHelp] = useState(false);
+  const load = useCallback(() => api.get<PublicSettings>("/api/settings").then(setS, (e: Error) => setError(e.message)), []);
   useEffect(() => {
     void load();
   }, [load]);
-  if (!s) return null;
+  if (!s) return error ? <div className="page err">{error}</div> : null;
   const saveGeneral = async () => {
-    const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage });
-    setS(next);
-    setLang(next.uiLanguage);
-    setMsg(t.saved);
+    setMsg("");
+    setError("");
+    try {
+      const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage });
+      setS(next);
+      setLang(next.uiLanguage);
+      setMsg(t.saved);
+    } catch (e) {
+      setError((e as Error).message);
+    }
   };
   return (
     <div className="page">
       <h2>{t.settings}</h2>
       <div className="card section">
-        <h3>{t.general}</h3>
+        <h3>
+          <IconSliders size={16} />
+          {t.general}
+        </h3>
         <div className="grid2">
           <label>
             {t.defaultModel}
@@ -373,10 +416,34 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
             {t.save}
           </button>
           {msg && <span className="ok">{msg}</span>}
+          {error && <span className="err">{error}</span>}
         </div>
       </div>
       <div className="card section">
-        <h3>{t.notifications}</h3>
+        <div className="row">
+          <h3>
+            <IconBell size={16} />
+            {t.notifications}
+          </h3>
+          <button className="help-btn" aria-label={t.notifyHelpLabel} aria-expanded={help} title={t.notifyHelpLabel} onClick={() => setHelp(!help)}>
+            ?
+          </button>
+        </div>
+        {help && (
+          <div className="help-box">
+            {t.notifyHelp.map((c) => (
+              <div key={c.title}>
+                <strong>{c.title}</strong>
+                <ol>
+                  {c.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+            <p className="muted">{t.notifyHelpToken}</p>
+          </div>
+        )}
         <ChannelForm name="bale" label={t.channels.bale!} current={s.bale} onSaved={load} />
         <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />

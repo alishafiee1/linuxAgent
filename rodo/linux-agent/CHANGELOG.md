@@ -4,3 +4,4 @@
 > قالب: `- YYYY-MM-DD | چه چیزی عوض شد | چرا | فایل‌ها`
 
 - 2026-10-29 | روش RODO به پروژه اضافه شد | تا AI و آدم‌ها از یک نقشه و سندهای به‌روز کار کنند | `rodo/`، `.agents/skills/rodo/`، `AGENTS.md`
+- 2026-10-31 | دو سند ساده اضافه شد و خط‌های قدیمی وضعیت درست شد | تا کارفرما و مسعود بدون خواندن کد پروژه را بفهمند | `project/client-overview.md`، `project/how-it-works.md`، `MAP.md`، `project/architecture.md`

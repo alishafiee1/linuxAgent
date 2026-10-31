@@ -1,16 +1,18 @@
 // Server-side CLI (spec R2). Usage: pnpm cwp user:init <username>
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { Writable } from "node:stream";
 import { AuthService } from "./auth/service.js";
 import { loadConfig, loadEnvFile } from "./config.js";
 import { openDb } from "./db.js";
 
 async function readHidden(prompt: string): Promise<string> {
-  const rl = createInterface({ input: stdin, output: stdout, terminal: true });
-  const out = rl as unknown as { _writeToOutput: (s: string) => void };
-  const original = out._writeToOutput.bind(rl);
-  out._writeToOutput = (s: string) => original(s.startsWith(prompt) ? prompt : "");
-  const answer = await rl.question(prompt);
+  // Readline echoes into a muted stream, so the typed password never reaches the terminal.
+  const muted = new Writable({ write: (_chunk, _encoding, done) => done() });
+  const rl = createInterface({ input: stdin, output: muted, terminal: true });
+  rl.on("SIGINT", () => process.exit(130));
+  stdout.write(prompt);
+  const answer = await rl.question("");
   rl.close();
   stdout.write("\n");
   return answer;

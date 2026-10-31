@@ -1,4 +1,5 @@
 import type { Bot, BotInput, Conversation } from "@linux-agent/shared";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -83,7 +84,16 @@ export class BotService {
   constructor(
     private db: Db,
     private botsDir: string,
+    /** Prefix that runs a program as the `agent` user. Empty = current user (dev). */
+    private agentExec: string[] = [],
   ) {}
+
+  /** The bots folder belongs to `agent`, so changes inside it run as that user. */
+  private asAgent(script: string, ...args: string[]): void {
+    const [bin, ...pre] = this.agentExec;
+    const r = spawnSync(bin!, [...pre, "env", "sh", "-c", script, "sh", ...args], { stdio: "ignore", timeout: 15_000 });
+    if (r.status !== 0) console.error(`[cwp] agent command failed: ${script}`);
+  }
 
   list(): Bot[] {
     return (this.db.prepare("SELECT * FROM bots ORDER BY created_at").all() as BotRow[]).map(toBot);
@@ -131,12 +141,17 @@ export class BotService {
   /** The bot's own notes file (spec R3). Created once, then owned by the bot. */
   ensureDir(bot: Bot): void {
     const dir = this.botDir(bot);
+    const initial = `# ${bot.name}\n\nیادداشت‌های این بات.\n`;
+    if (this.agentExec.length > 0) {
+      this.asAgent('mkdir -p "$1" && { [ -e "$1/CLAUDE.md" ] || printf %s "$2" > "$1/CLAUDE.md"; }', dir, initial);
+      return;
+    }
     try {
       mkdirSync(dir, { recursive: true });
       const notes = join(dir, "CLAUDE.md");
-      if (!existsSync(notes)) writeFileSync(notes, `# ${bot.name}\n\nیادداشت‌های این بات.\n`);
+      if (!existsSync(notes)) writeFileSync(notes, initial);
     } catch {
-      // In production the bots dir belongs to `agent`; the agent creates it on first run if we cannot.
+      // Notes are optional; the run still works without them.
     }
   }
 
@@ -179,6 +194,10 @@ export class BotService {
       .get(id);
     if (active) throw new HttpError(409, "bot_busy", MSG_BOT_BUSY);
     this.db.prepare("DELETE FROM bots WHERE id = ?").run(id);
+    if (this.agentExec.length > 0) {
+      this.asAgent('rm -rf -- "$1"', this.botDir(bot));
+      return;
+    }
     try {
       rmSync(this.botDir(bot), { recursive: true, force: true });
     } catch {
