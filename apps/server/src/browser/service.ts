@@ -155,6 +155,8 @@ export class BrowserService {
       case "click": {
         const base = { x: i.x, y: i.y, button: "left", clickCount: 1 };
         await this.page(botId, [
+          // Without this a headless page ignores the focus change of its first click.
+          { method: "Page.bringToFront" },
           { method: "Input.dispatchMouseEvent", params: { type: "mouseMoved", x: i.x, y: i.y } },
           { method: "Input.dispatchMouseEvent", params: { type: "mousePressed", ...base } },
           { method: "Input.dispatchMouseEvent", params: { type: "mouseReleased", ...base } },
@@ -195,7 +197,9 @@ export class BrowserService {
     const value = this.d.vault.reveal(itemId, field, status.url);
     const [focus] = (await this.page(botId, [{ method: "Runtime.evaluate", params: { expression: "(document.activeElement && document.activeElement.tagName + ':' + (document.activeElement.type || ''))", returnByValue: true } }])) as [{ result: { value?: string } }];
     const active = focus.result.value ?? "";
-    if (!/^(INPUT|TEXTAREA):/.test(active)) throw new HttpError(409, "no_field", "اول روی فیلد ورود کلیک کنید.");
+    // A password only goes into a masked field, where a bot's page reading does not show it as text.
+    const allowed = field === "password" ? /^INPUT:password$/ : /^(INPUT|TEXTAREA):/;
+    if (!allowed.test(active)) throw new HttpError(409, "no_field", field === "password" ? "اول روی فیلد رمز کلیک کنید." : "اول روی فیلد نام کاربری کلیک کنید.");
     await this.page(botId, [{ method: "Input.insertText", params: { text: value } }]);
   }
 
