@@ -105,6 +105,15 @@ export class Notifier {
     await c.api.call("sendMessage", { chat_id: c.chatId, text: MSG_TEST });
   }
 
+  /** A plain message to every configured channel. One failing channel does not stop the other. */
+  async notify(text: string): Promise<void> {
+    for (const name of ["bale", "telegram"] as const) {
+      const c = this.api(name);
+      if (!c) continue;
+      await c.api.call("sendMessage", { chat_id: c.chatId, text }).catch((e: Error) => this.log(`notify ${name} failed: ${e.message}`));
+    }
+  }
+
   private async sendApproval(a: Approval): Promise<void> {
     for (const name of ["bale", "telegram"] as const) {
       const c = this.api(name);

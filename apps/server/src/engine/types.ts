@@ -1,9 +1,21 @@
 // The engine boundary (design.md): the panel talks to every agent runtime through this shape.
 // Claude Agent SDK is the first implementation; a CLI-in-a-PTY adapter (Antigravity CLI) can come later.
 
+import type { ZodRawShape } from "zod";
+
 export type ToolDecision = { allow: true } | { allow: false; message: string };
 
 export type ToolGate = (toolName: string, input: Record<string, unknown>, signal: AbortSignal) => Promise<ToolDecision>;
+
+/** A tool the panel itself offers to a bot, reached by the engine as `mcp__cwp__<name>`. */
+export interface PanelTool {
+  name: string;
+  description: string;
+  shape: ZodRawShape;
+  run(args: Record<string, unknown>): Promise<string>;
+}
+
+export type McpStdioServer = { type: "stdio"; command: string; args: string[] };
 
 export interface EngineStartOptions {
   prompt: string;
@@ -17,6 +29,8 @@ export interface EngineStartOptions {
   maxTurns: number;
   canUseTool: ToolGate;
   abortController: AbortController;
+  panelTools?: PanelTool[];
+  mcpServers?: Record<string, McpStdioServer>;
 }
 
 export type EngineEvent =

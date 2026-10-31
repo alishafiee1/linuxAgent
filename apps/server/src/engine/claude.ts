@@ -1,6 +1,6 @@
-import { query, type SDKMessage, type SpawnOptions, type SpawnedProcess } from "@anthropic-ai/claude-agent-sdk";
+import { createSdkMcpServer, query, tool, type SDKMessage, type SpawnOptions, type SpawnedProcess } from "@anthropic-ai/claude-agent-sdk";
 import { spawn } from "node:child_process";
-import type { Engine, EngineEvent, EngineStartOptions } from "./types.js";
+import type { Engine, EngineEvent, EngineStartOptions, PanelTool } from "./types.js";
 
 // Only these variables cross into the agent process. Panel secrets (CWP_*) never do.
 const PASS_ENV = /^(CLAUDE|ANTHROPIC_BASE_URL$|ANTHROPIC_MODEL$|DEBUG$|PATH$|LANG$|LC_|TZ$|NODE_|USE_BUILTIN_RIPGREP$)/;
@@ -91,6 +91,21 @@ export function mapSdkMessage(m: SDKMessage): EngineEvent[] {
   return out;
 }
 
+function panelServer(tools: PanelTool[]) {
+  return createSdkMcpServer({
+    name: "cwp",
+    tools: tools.map((t) =>
+      tool(t.name, t.description, t.shape, async (args) => {
+        try {
+          return { content: [{ type: "text" as const, text: await t.run(args as Record<string, unknown>) }] };
+        } catch (e) {
+          return { content: [{ type: "text" as const, text: (e as Error).message }], isError: true };
+        }
+      }),
+    ),
+  });
+}
+
 export class ClaudeAgentEngine implements Engine {
   readonly name = "claude-agent-sdk";
 
@@ -101,6 +116,7 @@ export class ClaudeAgentEngine implements Engine {
 
   async *start(o: EngineStartOptions): AsyncIterable<EngineEvent> {
     const spawner = makeAgentSpawner(this.agentExec);
+    const mcpServers = { ...(o.mcpServers ?? {}), ...(o.panelTools?.length ? { cwp: panelServer(o.panelTools) } : {}) };
     const q = query({
       prompt: o.prompt,
       options: {
@@ -115,6 +131,7 @@ export class ClaudeAgentEngine implements Engine {
         // No filesystem settings: a bot could write allow rules into .claude/settings.json and skip approvals.
         settingSources: [],
         systemPrompt: { type: "preset", preset: "claude_code", append: o.systemPromptAppend },
+        mcpServers,
         canUseTool: async (toolName, input, { signal }) => {
           const d = await o.canUseTool(toolName, input, signal);
           return d.allow ? { behavior: "allow", updatedInput: input } : { behavior: "deny", message: d.message };
