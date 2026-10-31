@@ -324,28 +324,57 @@ export function KnowledgePage() {
 function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
   const { t } = useT();
   const [status, setStatus] = useState<BrowserStatus | null>(null);
-  const [frame, setFrame] = useState(0);
+  const [frame, setFrame] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [item, setItem] = useState("");
   const [msg, run] = useMsg();
   const img = useRef<HTMLImageElement>(null);
+  // Size of the frame on screen in page pixels. Kept here because the image element reads 0 while a new frame loads.
+  const size = useRef({ width: 0, height: 0 });
+  const running = status?.running ?? false;
 
   const load = useCallback(() => api.get<BrowserStatus>(`/api/browser/${botId}`).then(setStatus, () => {}), [botId]);
   useEffect(() => {
     void load();
-    const poll = setInterval(() => {
-      void load();
-      if (document.visibilityState === "visible") setFrame((n) => n + 1);
-    }, 1500);
+    const poll = setInterval(() => void load(), 3000);
     return () => clearInterval(poll);
   }, [load]);
+
+  // One frame at a time, so a slow link never piles up requests; the old frame stays until the next is ready.
+  useEffect(() => {
+    if (!running) return;
+    let stop = false;
+    let url: string | null = null;
+    void (async () => {
+      while (!stop) {
+        if (document.visibilityState === "visible") {
+          try {
+            const res = await fetch(`/api/browser/${botId}/screenshot`);
+            if (res.ok && !stop) {
+              const next = URL.createObjectURL(await res.blob());
+              if (url) URL.revokeObjectURL(url);
+              url = next;
+              setFrame(next);
+            }
+          } catch {
+            // the next round tries again
+          }
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    })();
+    return () => {
+      stop = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [botId, running]);
 
   const send = (input: unknown) => void run(() => api.post(`/api/browser/${botId}/input`, input), "");
   const point = (e: MouseEvent<HTMLImageElement> | WheelEvent<HTMLImageElement>) => {
     const el = img.current!;
     const r = el.getBoundingClientRect();
-    return { x: Math.round(((e.clientX - r.left) / r.width) * el.naturalWidth), y: Math.round(((e.clientY - r.top) / r.height) * el.naturalHeight) };
+    return { x: Math.round(((e.clientX - r.left) / r.width) * size.current.width), y: Math.round(((e.clientY - r.top) / r.height) * size.current.height) };
   };
   const onKey = (e: KeyboardEvent<HTMLImageElement>) => {
     if (["Enter", "Tab", "Backspace", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
@@ -388,8 +417,14 @@ function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
         className="browser-frame"
         tabIndex={0}
         alt={status.title ?? ""}
-        src={`/api/browser/${botId}/screenshot?f=${frame}`}
-        onClick={(e) => send({ type: "click", ...point(e) })}
+        src={frame ?? undefined}
+        onLoad={(e) => {
+          size.current = { width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight };
+        }}
+        onClick={(e) => {
+          e.currentTarget.focus();
+          send({ type: "click", ...point(e) });
+        }}
         onWheel={(e) => send({ type: "scroll", ...point(e), deltaY: e.deltaY })}
         onKeyDown={onKey}
       />
