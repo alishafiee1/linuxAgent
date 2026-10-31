@@ -1582,3 +1582,46 @@ dialog::backdrop {
 .md a {
   color: var(--accent);
 }
+
+label.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+label.check input {
+  width: auto;
+}
+
+.browser-frame {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.browser-frame:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.break {
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.row.nowrap {
+  flex-wrap: nowrap;
+}
+
+.help-box pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+}

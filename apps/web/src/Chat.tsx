@@ -293,6 +293,14 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
                 </div>
               );
             return null;
+          case "notice": {
+            const d = p.delegated as { botName: string } | undefined;
+            return d ? (
+              <div key={e.seq} className="msg state">
+                {t.delegatedTo} {d.botName}
+              </div>
+            ) : null;
+          }
           case "error":
             return (
               <div key={e.seq} className="msg err">

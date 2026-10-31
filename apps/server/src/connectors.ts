@@ -92,7 +92,7 @@ export class Connectors {
   }
 
   private repo(repo: string): string {
-    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new HttpError(400, "bad_repo", "نام مخزن باید owner/name باشد.");
+    if (!/^[\w-][\w.-]*\/[\w-][\w.-]*$/.test(repo)) throw new HttpError(400, "bad_repo", "نام مخزن باید owner/name باشد.");
     return repo;
   }
 

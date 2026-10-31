@@ -114,7 +114,7 @@ export class BrowserService {
       "--no-default-browser-check",
       "about:blank",
     ];
-    const [bin, ...pre] = this.d.agentExec.length ? [...this.d.agentExec, this.d.chromium] : [this.d.chromium];
+    const [bin, ...pre] = this.d.agentExec.length ? [...this.d.agentExec, "env", this.d.chromium] : [this.d.chromium];
     const child = spawn(bin!, [...pre, ...args], { stdio: "ignore", detached: true });
     child.on("error", (e) => console.error(`[cwp] chromium: ${e.message}`));
     child.unref();
