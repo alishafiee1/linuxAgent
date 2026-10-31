@@ -9,6 +9,7 @@
 import { exec } from "node:child_process";
 import { readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const MAX_OUTPUT = 200_000;
 const RUN_TIMEOUT_MS = 5 * 60_000;
@@ -101,4 +102,4 @@ async function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"))) await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

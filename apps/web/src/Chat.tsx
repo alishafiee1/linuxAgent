@@ -262,7 +262,7 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
           case "user":
             return (
               <div key={e.seq} className="msg">
-                <div className="bubble user" dir="auto">{String(p.text)}</div>
+                <div className="bubble user"><div dir="auto">{String(p.text)}</div></div>
               </div>
             );
           case "assistant_text":
