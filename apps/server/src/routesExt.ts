@@ -1,4 +1,4 @@
-import type { BrowserInput, ConnectorsInput, RoutineInput, SkillInput, VaultInput } from "@linux-agent/shared";
+import type { BrowserInput, RequestAnswer, RoutineInput, SkillInput, VaultInput } from "@linux-agent/shared";
 import type { FastifyInstance } from "fastify";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
@@ -8,6 +8,8 @@ import type { BrowserService } from "./browser/service.js";
 import type { Connectors } from "./connectors.js";
 import type { KnowledgeService } from "./knowledge.js";
 import { PAGE_CSP, type PageService } from "./pages.js";
+import type { PlatformService } from "./platforms.js";
+import type { RequestService } from "./requests.js";
 import type { RoutineService } from "./routines/service.js";
 import type { VaultService } from "./vault.js";
 
@@ -19,6 +21,8 @@ export interface ExtDeps {
   pages: PageService;
   connectors: Connectors;
   bridge: BridgeService;
+  platforms: PlatformService;
+  requests: RequestService;
 }
 
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
@@ -133,15 +137,27 @@ export function registerExtRoutes(app: FastifyInstance, d: ExtDeps): void {
   });
 
   // --- connectors
-  app.get("/api/connectors", async () => d.connectors.status());
-  app.put("/api/connectors", async (req) =>
-    d.connectors.apply(parse(z.object({ githubToken: z.string().max(500).nullable().optional(), googleClientId: z.string().max(300).nullable().optional(), googleClientSecret: z.string().max(300).nullable().optional() }), req.body) as ConnectorsInput),
-  );
-  app.post("/api/connectors/google/start", async () => ({ url: d.connectors.googleAuthUrl() }));
-  app.post("/api/connectors/google/disconnect", async () => {
-    d.connectors.googleDisconnect();
-    return d.connectors.status();
+  app.get("/api/platforms", async () => d.platforms.list());
+  app.put<{ Params: { id: string } }>("/api/platforms/:id", async (req) => d.platforms.connect(req.params.id, parse(z.object({ values: z.record(z.string(), z.string().max(2000)) }), req.body).values));
+  app.post("/api/platforms/custom", async (req) => {
+    const b = parse(z.object({ name: z.string(), baseUrl: z.string().max(500), header: z.string().max(60).optional(), template: z.string().max(200).optional(), description: z.string().max(500).optional(), token: z.string().max(2000) }), req.body);
+    return d.platforms.addCustom({ name: b.name, baseUrl: b.baseUrl, header: b.header ?? "authorization", template: b.template ?? "Bearer {token}", description: b.description }, b.token);
   });
+  app.post<{ Params: { id: string } }>("/api/platforms/:id/test", async (req) => d.platforms.test(req.params.id));
+  app.delete<{ Params: { id: string } }>("/api/platforms/:id", async (req) => {
+    d.platforms.disconnect(req.params.id);
+    if (req.params.id === "google") d.connectors.googleDisconnect();
+    return { ok: true };
+  });
+  app.post("/api/connectors/google/start", async () => ({ url: d.connectors.googleAuthUrl() }));
+
+  // --- what bots ask of the person
+  app.get("/api/requests", async () => d.requests.pending());
+  app.post<{ Params: { id: string } }>("/api/requests/:id/answer", async (req) => {
+    const b = parse(z.object({ answers: z.record(z.string(), z.array(z.string().max(2000)).max(10)).optional(), done: z.boolean().optional() }), req.body);
+    return d.requests.answer(req.params.id, b as RequestAnswer, "panel");
+  });
+  app.post<{ Params: { id: string } }>("/api/requests/:id/cancel", async (req) => d.requests.cancel(req.params.id));
   app.get<{ Querystring: { state?: string; code?: string } }>("/oauth/google/callback", async (req, reply) => {
     reply.type("text/html; charset=utf-8");
     try {

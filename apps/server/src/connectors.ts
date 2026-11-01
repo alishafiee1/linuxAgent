@@ -1,4 +1,3 @@
-import type { ConnectorsInput, ConnectorsStatus } from "@linux-agent/shared";
 import { HttpError } from "./bots.js";
 import { randomToken } from "./lib/crypto.js";
 import type { SettingsStore } from "./settings.js";
@@ -52,34 +51,16 @@ export class Connectors {
   }
 
   githubConfigured(): boolean {
-    return this.settings.get("github.token.secret") !== null;
+    return this.settings.get("platform.github.token.secret") !== null;
   }
 
   googleConnected(): boolean {
     return this.settings.get("google.refresh.secret") !== null;
   }
 
-  status(): ConnectorsStatus {
-    return {
-      github: { configured: this.githubConfigured() },
-      google: {
-        clientConfigured: this.settings.get("google.clientId") !== null && this.settings.get("google.clientSecret.secret") !== null,
-        connected: this.googleConnected(),
-        redirectUri: this.redirectUri,
-      },
-    };
-  }
-
-  apply(i: ConnectorsInput): ConnectorsStatus {
-    if (i.githubToken !== undefined) this.settings.set("github.token.secret", i.githubToken?.trim() || null);
-    if (i.googleClientId !== undefined) this.settings.set("google.clientId", i.googleClientId?.trim() || null);
-    if (i.googleClientSecret !== undefined) this.settings.set("google.clientSecret.secret", i.googleClientSecret?.trim() || null);
-    return this.status();
-  }
-
   // --- GitHub
   private async github<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-    const token = this.settings.get("github.token.secret");
+    const token = this.settings.get("platform.github.token.secret");
     if (!token) throw new HttpError(400, "not_connected", "GitHub وصل نشده است.");
     const res = await this.fetchFn(`https://api.github.com${path}`, {
       method: init.method ?? "GET",

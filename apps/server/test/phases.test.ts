@@ -11,6 +11,8 @@ import { BrowserService } from "../src/browser/service.js";
 import { buildMime, Connectors } from "../src/connectors.js";
 import { AgentFiles, KnowledgeService } from "../src/knowledge.js";
 import { PageService } from "../src/pages.js";
+import { PlatformService } from "../src/platforms.js";
+import { RequestService } from "../src/requests.js";
 import { buildPanelTools } from "../src/panelTools.js";
 import { isValidTimezone, nextCron, parseCron } from "../src/routines/cron.js";
 import { RoutineService } from "../src/routines/service.js";
@@ -30,7 +32,7 @@ function services(t: ReturnType<typeof setup>) {
   const connectors = new Connectors(t.settings, "https://panel.test");
   const bridge = new BridgeService(t.db);
   const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator });
-  return { files, knowledge, vault, browser, pages, connectors, bridge, routines };
+  return { files, knowledge, vault, browser, pages, connectors, bridge, routines, platforms: new PlatformService(t.settings, "https://panel.test"), requests: new RequestService(t.db) };
 }
 
 async function api(t: ReturnType<typeof setup>) {
@@ -309,10 +311,8 @@ describe("connectors", () => {
       seen.push({ url, auth: (init.headers as Record<string, string>).authorization! });
       return [{ number: 1, title: "bug", state: "open" }, { number: 2, title: "pr", state: "open", pull_request: {} }];
     }));
-    expect(c.status().github.configured).toBe(false);
     await expect(c.githubListIssues("o/r")).rejects.toThrow();
-    const status = c.apply({ githubToken: "ghp_SECRET" });
-    expect(JSON.stringify(status)).not.toContain("ghp_SECRET");
+    t.settings.set("platform.github.token.secret", "ghp_SECRET");
     expect(await c.githubListIssues("o/r")).toBe("#1 [open] bug");
     expect(seen[0]).toEqual({ url: "https://api.github.com/repos/o/r/issues?per_page=30&state=open", auth: "Bearer ghp_SECRET" });
     await expect(c.githubListIssues("../x")).rejects.toThrow();
@@ -327,12 +327,13 @@ describe("connectors", () => {
       return { id: "m1" };
     }));
     expect(() => c.googleAuthUrl()).toThrow();
-    c.apply({ googleClientId: "cid", googleClientSecret: "csec" });
+    t.settings.set("google.clientId", "cid");
+    t.settings.set("google.clientSecret.secret", "csec");
     const state = new URL(c.googleAuthUrl()).searchParams.get("state")!;
     await expect(c.googleCallback("forged", "code")).rejects.toThrow();
     await c.googleCallback(state, "code");
     await expect(c.googleCallback(state, "code")).rejects.toThrow();
-    expect(c.status().google.connected).toBe(true);
+    expect(c.googleConnected()).toBe(true);
     expect(await c.gmailSend("a@b.c", "سلام", "متن")).toBe("sent: m1");
     expect(calls.filter((u) => u.includes("oauth2")).length).toBe(1);
   });

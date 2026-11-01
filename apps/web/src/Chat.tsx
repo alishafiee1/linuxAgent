@@ -1,9 +1,10 @@
-import type { Bot, Conversation, Run, RunEvent } from "@linux-agent/shared";
+import type { Bot, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { api } from "./api";
 import { IconActivity, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
+import { RequestCard } from "./requests";
 
 const ACTIVE = new Set(["queued", "running", "waiting_approval", "waiting_limit"]);
 
@@ -128,7 +129,7 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
           </div>
         )}
         {runs.map((r) => (
-          <RunView key={r.id} run={r} onChanged={loadRuns} />
+          <RunView key={r.id} run={r} botId={bot.id} onChanged={loadRuns} />
         ))}
         <div ref={bottom} />
       </div>
@@ -237,7 +238,7 @@ function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: st
   );
 }
 
-function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
+function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged: () => void }) {
   const { t } = useT();
   const events = useRunEvents(run);
   const results = new Map<string, { content: string; isError: boolean }>();
@@ -246,6 +247,7 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
     results.set(p.toolUseId, p);
   }
   const decided = new Set(events.filter((e) => e.type === "approval" && (e.payload as { state: string }).state !== "pending").map((e) => (e.payload as { approvalId: string }).approvalId));
+  const closed = new Set(events.filter((e) => e.type === "request" && (e.payload as { state: string }).state !== "pending").map((e) => (e.payload as { requestId: string }).requestId));
   const lastState = [...events].reverse().find((e) => e.type === "state")?.payload as { state: string; message?: string | null; limitResetAt?: string | null } | undefined;
   const state = lastState?.state ?? run.state;
   const [error, setError] = useState("");
@@ -295,12 +297,28 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
             return null;
           case "notice": {
             const d = p.delegated as { botName: string } | undefined;
-            return d ? (
+            const m = p.messaged as { botName: string } | undefined;
+            return d || m ? (
               <div key={e.seq} className="msg state">
-                {t.delegatedTo} {d.botName}
+                {d ? `${t.delegatedTo} ${d.botName}` : `${t.messagedTo} ${m!.botName}`}
               </div>
             ) : null;
           }
+          case "request":
+            if (p.state === "pending") {
+              if (closed.has(String(p.requestId)) || !ACTIVE.has(state)) return null;
+              return (
+                <div key={e.seq} className="msg">
+                  <RequestCard id={String(p.requestId)} botId={botId} kind={p.kind as RequestKind} payload={p.payload as RequestPayload} onDone={onChanged} />
+                </div>
+              );
+            }
+            return (
+              <div key={e.seq} className="msg state">
+                {t.requestDone[String(p.state)] ?? String(p.state)}
+                {p.channel ? ` (${t.channels[String(p.channel)] ?? ""})` : ""}
+              </div>
+            );
           case "error":
             return (
               <div key={e.seq} className="msg err">

@@ -50,6 +50,15 @@ export class SettingsStore {
     return this.get("browserClicksAuto") === "1";
   }
 
+  /** On unless turned off: a small nightly job keeps shared memory current. */
+  learningEnabled(): boolean {
+    return this.get("learningEnabled") !== "0";
+  }
+
+  keys(prefix: string): string[] {
+    return (this.db.prepare("SELECT key FROM settings WHERE key LIKE ? ESCAPE '\\'").all(`${prefix.replace(/[\\%_]/g, "\\$&")}%`) as { key: string }[]).map((r) => r.key);
+  }
+
   publicView(): PublicSettings {
     const lang = this.get("uiLanguage");
     return {
@@ -59,6 +68,7 @@ export class SettingsStore {
       bale: { configured: this.channel("bale") !== null, chatId: this.get("bale.chatId") },
       telegram: { configured: this.channel("telegram") !== null, chatId: this.get("telegram.chatId") },
       browserClicksAuto: this.browserClicksAuto(),
+      learningEnabled: this.learningEnabled(),
     };
   }
 
@@ -66,6 +76,7 @@ export class SettingsStore {
     if (input.defaultModel !== undefined) this.set("defaultModel", input.defaultModel.trim() || null);
     if (input.maxConcurrentRuns !== undefined) this.set("maxConcurrentRuns", String(input.maxConcurrentRuns));
     if (input.uiLanguage !== undefined) this.set("uiLanguage", input.uiLanguage);
+    if (input.learningEnabled !== undefined) this.set("learningEnabled", input.learningEnabled ? "1" : "0");
     if (input.browserClicksAuto !== undefined) this.set("browserClicksAuto", input.browserClicksAuto ? "1" : "0");
     for (const name of ["bale", "telegram"] as const) {
       const ch = input[name];

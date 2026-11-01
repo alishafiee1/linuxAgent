@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { api, ApiError } from "./api";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
-import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
+import { ConnectionsPage } from "./connections";
+import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
 import { BrowserPage, KnowledgePage, RoutinesPage, SharedPagesPage } from "./pagesExt";
@@ -16,11 +17,12 @@ export interface Status {
   lowDiskMessage: string | null;
 }
 
-type View = "chat" | "approvals" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
+type View = "chat" | "approvals" | "connections" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
 
 const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   chat: IconChat,
   approvals: IconShield,
+  connections: IconLink,
   routines: IconClock,
   knowledge: IconBot,
   browser: IconGlobe,
@@ -122,7 +124,8 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
 
 function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, lang, setLang } = useT();
-  const [view, setView] = useState<View>("chat");
+  // A link in a Bale or Telegram message opens the page that holds the waiting card.
+  const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).has("inbox") ? "approvals" : "chat"));
   const [bots, setBots] = useState<Bot[]>([]);
   const [botId, setBotId] = useState<string | null>(() => {
     try {
@@ -205,7 +208,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           {t.appName}
         </span>
         <nav className="nav">
-          {(["chat", "approvals", "routines", "knowledge", "browser", "pages", "usage", "files", "settings"] as View[]).map((v) => {
+          {(["chat", "approvals", "connections", "routines", "knowledge", "browser", "pages", "usage", "files", "settings"] as View[]).map((v) => {
             const NavIcon = NAV_ICONS[v];
             return (
               <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
@@ -295,6 +298,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}
         {view === "approvals" && <ApprovalsPage activityTick={activityTick} />}
+        {view === "connections" && <ConnectionsPage />}
         {view === "routines" && <RoutinesPage bots={bots} activityTick={activityTick} />}
         {view === "knowledge" && <KnowledgePage />}
         {view === "browser" && <BrowserPage bots={bots} />}

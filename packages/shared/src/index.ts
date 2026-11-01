@@ -80,6 +80,7 @@ export type RunEventType =
   | "tool_result"
   | "state"
   | "approval"
+  | "request"
   | "notice"
   | "result"
   | "error";
@@ -151,6 +152,7 @@ export interface PublicSettings {
   bale: { configured: boolean; chatId: string | null };
   telegram: { configured: boolean; chatId: string | null };
   browserClicksAuto: boolean;
+  learningEnabled: boolean;
 }
 
 export interface SettingsInput {
@@ -160,6 +162,7 @@ export interface SettingsInput {
   bale?: { token?: string; chatId?: string } | null;
   telegram?: { token?: string; chatId?: string } | null;
   browserClicksAuto?: boolean;
+  learningEnabled?: boolean;
 }
 
 export interface Me {
@@ -270,18 +273,6 @@ export interface SharedPage {
   createdAt: string;
 }
 
-// --- connectors (cycle 004)
-export interface ConnectorsStatus {
-  github: { configured: boolean };
-  google: { clientConfigured: boolean; connected: boolean; redirectUri: string };
-}
-
-export interface ConnectorsInput {
-  githubToken?: string | null;
-  googleClientId?: string | null;
-  googleClientSecret?: string | null;
-}
-
 // --- desktop bridge (cycle 006)
 export interface BridgeDevice {
   id: string;
@@ -297,3 +288,83 @@ export type BridgeCommand =
   | { kind: "read"; path: string }
   | { kind: "write"; path: string; content: string }
   | { kind: "run"; cwd: string; command: string };
+
+// --- what a bot asks of the person (cycle 007)
+export type RequestKind = "questions" | "connection" | "browser";
+export type RequestState = "pending" | "answered" | "cancelled" | "expired";
+
+export interface QuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface Question {
+  question: string;
+  header?: string;
+  options: QuestionOption[];
+  multiSelect?: boolean;
+}
+
+export interface QuestionsPayload {
+  questions: Question[];
+}
+
+export interface ConnectionPayload {
+  /** A catalog id. Absent for a service outside the catalog. */
+  platform?: string;
+  name?: string;
+  baseUrl?: string;
+  header?: string;
+  template?: string;
+  reason: string;
+}
+
+export interface BrowserPayload {
+  reason: string;
+  url: string | null;
+}
+
+export type RequestPayload = QuestionsPayload | ConnectionPayload | BrowserPayload;
+
+export interface RequestAnswer {
+  /** Question text to chosen labels or free text. */
+  answers?: Record<string, string[]>;
+  done?: boolean;
+}
+
+export interface UserRequest {
+  id: string;
+  runId: string;
+  botId: string;
+  botName: string;
+  kind: RequestKind;
+  payload: RequestPayload;
+  state: RequestState;
+  answer: RequestAnswer | null;
+  channel: ApprovalChannel | null;
+  createdAt: string;
+}
+
+// --- connections (cycle 008)
+export type PlatformCategory = "communication" | "code" | "work" | "ai" | "custom";
+
+export interface PlatformField {
+  key: string;
+  label: string;
+  secret: boolean;
+}
+
+export interface PlatformInfo {
+  id: string;
+  name: string;
+  category: PlatformCategory;
+  kind: "token" | "google";
+  connected: boolean;
+  fields: PlatformField[];
+  /** Non-secret values only. */
+  values: Record<string, string>;
+  helpUrl: string;
+  steps: string[];
+  testable: boolean;
+  redirectUri: string | null;
+}

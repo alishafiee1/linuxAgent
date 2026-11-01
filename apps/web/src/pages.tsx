@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconGlobe, IconInbox, IconShield, IconSliders, IconX } from "./icons";
 import { useT } from "./i18n";
-import { ConnectorsSection, DevicesSection } from "./pagesExt";
+import { DevicesSection } from "./pagesExt";
+import { PendingRequests } from "./requests";
 
 export function ApprovalsPage({ activityTick }: { activityTick: number }) {
   const { t, locale } = useT();
@@ -27,6 +28,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
     <div className="page">
       <h2>{t.approvals}</h2>
       {error && <div className="err">{error}</div>}
+      <PendingRequests activityTick={activityTick} />
       {pending.length === 0 && (
         <div className="empty">
           <IconInbox size={30} />
@@ -379,7 +381,7 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
     setMsg("");
     setError("");
     try {
-      const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage, browserClicksAuto: s.browserClicksAuto });
+      const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage, browserClicksAuto: s.browserClicksAuto, learningEnabled: s.learningEnabled });
       setS(next);
       setLang(next.uiLanguage);
       setMsg(t.saved);
@@ -415,6 +417,10 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <label className="check">
           <input type="checkbox" checked={s.browserClicksAuto} onChange={(e) => setS({ ...s, browserClicksAuto: e.target.checked })} />
           {t.browserClicksAuto}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={s.learningEnabled} onChange={(e) => setS({ ...s, learningEnabled: e.target.checked })} />
+          {t.learningEnabled}
         </label>
         <div className="row">
           <button className="primary" onClick={() => void saveGeneral()}>
@@ -454,7 +460,6 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
       <ProxySection proxy={proxy} onChanged={onSaved} />
-      <ConnectorsSection />
       <DevicesSection />
     </div>
   );
