@@ -1,8 +1,11 @@
+<!-- RODO_ERROR: REF_LINE_INVALID: line 23: write - [title](/path) (+2 more: rodo/linux-agent/.rodo/last-sync.json) -->
 ---
 schemaVersion: 2
-title: "روتین‌ها، مهارت‌ها و حافظهٔ مشترک"
-status: todo
+id: cmvw715d9001vpc01psp0bcw0
+title: روتین‌ها، مهارت‌ها و حافظهٔ مشترک
+status: in_progress
 priority: medium
+updatedAt: 1793341051772
 ---
 
 ## Goal
@@ -15,4 +18,9 @@ priority: medium
 
 ## Refs
 
-- [توضیح ساده](/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md)
+- [توضیح ساده](/rodo/linux-agent/cycles/002-routines-skills-memory/simple.md) <!-- rodo:ref_cmvw715e6001xpc01u6olsfrl -->
+
+## Progress notes
+
+- Updated: 2026-10-31
+- Remaining: Built on feat/complete-phases and tested with the real engine on a separate test panel. Remaining: install on the live server.
