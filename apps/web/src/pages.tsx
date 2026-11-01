@@ -6,7 +6,7 @@ import { useT } from "./i18n";
 import { ConnectorsSection, DevicesSection } from "./pagesExt";
 
 export function ApprovalsPage({ activityTick }: { activityTick: number }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [list, setList] = useState<Approval[]>([]);
   const [error, setError] = useState("");
   const load = useCallback(() => api.get<Approval[]>("/api/approvals").then(setList, (e: Error) => setError(e.message)), []);
@@ -43,7 +43,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
               <strong>{a.botName}</strong>
               <span className="muted">· {a.reason}</span>
               <span className="spacer" />
-              <span className="muted">{new Date(a.createdAt).toLocaleString()}</span>
+              <span className="muted">{new Date(a.createdAt).toLocaleString(locale)}</span>
             </div>
             <pre>
               {a.toolName} {JSON.stringify(a.input, null, 2)}
@@ -74,7 +74,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
                 <td>
                   {t.approvalStates[a.state]} {a.decidedByChannel ? `(${t.channels[a.decidedByChannel]})` : ""}
                 </td>
-                <td className="muted">{a.decidedAt ? new Date(a.decidedAt).toLocaleString() : ""}</td>
+                <td className="muted">{a.decidedAt ? new Date(a.decidedAt).toLocaleString(locale) : ""}</td>
               </tr>
             ))}
           </tbody>
@@ -85,7 +85,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
 }
 
 export function UsagePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [report, setReport] = useState<UsageReport | null>(null);
   useEffect(() => {
     api.get<UsageReport>("/api/usage").then(setReport, () => {});
@@ -97,7 +97,7 @@ export function UsagePage() {
       <h2>{t.usage}</h2>
       {report.limit.waiting && (
         <div className="banner warn card" style={{ marginBottom: 12 }}>
-          {t.limitBanner} {report.limit.resetAt ? new Date(report.limit.resetAt).toLocaleString() : "?"}
+          {t.limitBanner} {report.limit.resetAt ? new Date(report.limit.resetAt).toLocaleString(locale) : "?"}
         </div>
       )}
       {report.rows.length === 0 ? (

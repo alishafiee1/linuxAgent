@@ -34,7 +34,15 @@ const proxy = new ProxyService({ settings, clashApiUrl: config.clashApiUrl, clas
 const agentFiles = new AgentFiles(config.agentExec);
 const knowledge = new KnowledgeService(config.agentHome, bots, agentFiles);
 const vault = new VaultService(db, config.masterKey);
-const browser = new BrowserService({ bots, vault, agentHome: config.agentHome, agentExec: config.agentExec, chromium: config.chromium });
+const browser = new BrowserService({
+  bots,
+  vault,
+  files: agentFiles,
+  agentHome: config.agentHome,
+  agentExec: config.agentExec,
+  chromium: config.chromium,
+  isBusy: (botId) => bots.hasActiveRun(botId),
+});
 const pages = new PageService(db, agentFiles, config.workspaceDir, config.publicBaseUrl);
 const connectors = new Connectors(settings, config.publicBaseUrl);
 const bridge = new BridgeService(db);

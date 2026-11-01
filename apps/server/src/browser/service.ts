@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { HttpError, type BotService } from "../bots.js";
 import type { McpStdioServer } from "../engine/types.js";
+import type { AgentFiles } from "../knowledge.js";
 import type { VaultService } from "../vault.js";
 
 export const MAX_BROWSERS = 2;
@@ -28,6 +29,9 @@ export interface BrowserDeps {
   agentHome: string;
   agentExec: string[];
   chromium: string;
+  files: AgentFiles;
+  /** A bot driving its browser through MCP does not touch `lastUse`, so a working bot's browser stays open. */
+  isBusy?: (botId: string) => boolean;
   fetchFn?: typeof fetch;
 }
 
@@ -65,6 +69,21 @@ export class BrowserService {
   /** Stable per bot, so the MCP address is known before the browser exists. */
   port(bot: Bot): number {
     return 9300 + createHash("sha256").update(bot.id).digest().readUInt16BE(0) % 600;
+  }
+
+  /** By id, not slug: slugs get reused, and a new bot must never inherit a deleted bot's logins. */
+  private profileDir(bot: Bot): string {
+    return join(this.d.agentHome, "browser", bot.id);
+  }
+
+  /** Closes the browser of a bot being deleted and removes its saved logins. */
+  async forget(bot: Bot): Promise<void> {
+    await this.close(bot.id).catch(() => {});
+    // Chromium keeps writing to its profile for a moment after it says it closed.
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      this.d.files.removeDir(this.profileDir(bot));
+    }
   }
 
   mcpServers(bot: Bot): Record<string, McpStdioServer> {
@@ -106,7 +125,7 @@ export class BrowserService {
       "--headless=new",
       `--remote-debugging-port=${port}`,
       "--remote-debugging-address=127.0.0.1",
-      `--user-data-dir=${join(this.d.agentHome, "browser", bot.slug)}`,
+      `--user-data-dir=${this.profileDir(bot)}`,
       `--window-size=${VIEWPORT.width},${VIEWPORT.height}`,
       "--disable-gpu",
       "--disable-dev-shm-usage",
@@ -206,7 +225,7 @@ export class BrowserService {
   start(): void {
     this.timer = setInterval(() => {
       const cutoff = Date.now() - IDLE_MS;
-      for (const [botId, at] of this.lastUse) if (at < cutoff) void this.close(botId).catch(() => {});
+      for (const [botId, at] of this.lastUse) if (at < cutoff && !this.d.isBusy?.(botId)) void this.close(botId).catch(() => {});
     }, 60_000);
     this.timer.unref?.();
   }

@@ -92,7 +92,7 @@ export class Orchestrator {
   private running: Promise<void>[] = [];
   private clock: () => number;
   /** Runs paused on a child run give up their slot, so a parent and child never deadlock at the limit. */
-  private blocked = new Set<string>();
+  private blocked = new Map<string, number>();
   private endListeners: ((run: Run) => void)[] = [];
 
   constructor(private d: OrchestratorDeps) {
@@ -210,7 +210,7 @@ export class Orchestrator {
     const from = this.d.bots.get(this.d.bots.conversation(parent.conversationId).botId);
     const target = this.d.bots.get(targetBotId);
     const conv = this.d.bots.createConversation(targetBotId, `از ${from.name}: ${task.slice(0, 50)}`);
-    this.blocked.add(parent.id);
+    this.blocked.set(parent.id, (this.blocked.get(parent.id) ?? 0) + 1);
     const child = this.submit(conv.id, task, { parentRunId: parent.id, depth });
     this.d.events.append(parent.id, "notice", { delegated: { runId: child.id, conversationId: conv.id, botName: target.name } });
     const onAbort = (): void => void this.cancel(child.id);
@@ -232,7 +232,9 @@ export class Orchestrator {
       return this.resultText(done.id) ?? "(بدون متن)";
     } finally {
       signal.removeEventListener("abort", onAbort);
-      this.blocked.delete(parent.id);
+      const left = (this.blocked.get(parent.id) ?? 1) - 1;
+      if (left > 0) this.blocked.set(parent.id, left);
+      else this.blocked.delete(parent.id);
     }
   }
 

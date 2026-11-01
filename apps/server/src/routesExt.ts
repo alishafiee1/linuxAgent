@@ -1,5 +1,6 @@
 import type { BrowserInput, ConnectorsInput, RoutineInput, SkillInput, VaultInput } from "@linux-agent/shared";
 import type { FastifyInstance } from "fastify";
+import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { HttpError } from "./bots.js";
 import type { BridgeService } from "./bridge.js";
@@ -64,10 +65,14 @@ export function registerExtRoutes(app: FastifyInstance, d: ExtDeps): void {
     if (!run) throw new HttpError(409, "busy", "اجرای قبلی این روتین هنوز تمام نشده است.");
     return { runId: run.id };
   });
-  app.post<{ Params: { token: string } }>("/hook/:token", async (req, reply) => {
-    const body = typeof req.body === "string" ? req.body : req.body === undefined ? "" : JSON.stringify(req.body);
-    const run = d.routines.fireWebhook(req.params.token, body);
-    return reply.status(202).send({ accepted: run !== null });
+  // Outside services send every kind of body, or none, so here it is only text.
+  void app.register(async (scope) => {
+    scope.removeAllContentTypeParsers();
+    scope.addContentTypeParser("*", { parseAs: "string" }, (_req, body, done) => done(null, body));
+    scope.post<{ Params: { token: string } }>("/hook/:token", async (req, reply) => {
+      const run = d.routines.fireWebhook(req.params.token, typeof req.body === "string" ? req.body : "");
+      return reply.status(202).send({ accepted: run !== null });
+    });
   });
 
   // --- skills and memory
@@ -156,6 +161,10 @@ export function registerExtRoutes(app: FastifyInstance, d: ExtDeps): void {
   app.delete<{ Params: { id: string } }>("/api/bridge/devices/:id", async (req) => {
     d.bridge.delete(req.params.id);
     return { ok: true };
+  });
+  app.get("/api/bridge/script", async (_req, reply) => {
+    reply.header("content-disposition", 'attachment; filename="bridge.mjs"');
+    return reply.type("text/javascript; charset=utf-8").send(readFileSync(new URL("../../../deploy/desktop-bridge/bridge.mjs", import.meta.url)));
   });
   const bearer = (h: string | undefined): string | undefined => h?.replace(/^Bearer\s+/i, "");
   app.get("/bridge/poll", async (req) => ({ next: await d.bridge.poll(bearer(req.headers.authorization)) }));

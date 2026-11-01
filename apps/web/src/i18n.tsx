@@ -122,7 +122,7 @@ const fa = {
   trigger: "شروع با",
   triggerCron: "زمان‌بندی",
   triggerWebhook: "خبر از بیرون (وب‌هوک)",
-  cron: "زمان‌بندی (مثل 0 8 * * * برای هر روز ساعت ۸)",
+  cron: "زمان‌بندی (پنج بخش: دقیقه، ساعت، روز، ماه، روز هفته)",
   timezone: "منطقهٔ زمانی",
   routinePrompt: "چه کاری انجام شود؟",
   routineNotify: "نتیجه به بله و تلگرام فرستاده شود",
@@ -135,6 +135,15 @@ const fa = {
   disable: "خاموش کن",
   confirmDeleteItem: "حذف شود؟",
   knowledge: "حافظه و مهارت",
+  navKnowledge: "حافظه",
+  navBrowser: "مرورگر",
+  cronShort: "زمان‌بندی",
+  presets: "زمان‌های آماده",
+  presetDaily: "هر روز ساعت ۸",
+  presetHourly: "هر ساعت",
+  presetWeekly: "هر شنبه ساعت ۹",
+  presetMonthly: "اول هر ماه ساعت ۹",
+  downloadBridge: "دریافت فایل پل",
   memory: "حافظه",
   memoryHelp: "بات‌ها این متن را در هر کار می‌خوانند و می‌توانند تغییرش بدهند.",
   sharedMemory: "حافظهٔ مشترک همهٔ بات‌ها",
@@ -175,7 +184,7 @@ const fa = {
   devices: "کامپیوتر شخصی",
   devicesHelp: "بات‌ها فقط در پوشه‌های انتخابی و با تأیید شما روی کامپیوترتان کار می‌کنند، آن هم وقتی پل روشن است.",
   deviceFolders: "پوشه‌های مجاز (هر کدام در یک خط)",
-  deviceOnce: "این دستور فقط همین یک بار نشان داده می‌شود. آن را در پوشهٔ deploy/desktop-bridge روی کامپیوترتان اجرا کنید:",
+  deviceOnce: "فایل پل را بگیرید. این دستور فقط همین یک بار نشان داده می‌شود. آن را در PowerShell و در پوشهٔ همان فایل اجرا کنید:",
   delegatedTo: "کار سپرده شد به",
 };
 
@@ -302,7 +311,7 @@ const en: Dict = {
   trigger: "Starts on",
   triggerCron: "Schedule",
   triggerWebhook: "Outside event (webhook)",
-  cron: "Schedule (0 8 * * * is every day at 8)",
+  cron: "Schedule (five parts: minute, hour, day, month, weekday)",
   timezone: "Time zone",
   routinePrompt: "What should be done?",
   routineNotify: "Send the result to Bale and Telegram",
@@ -315,6 +324,15 @@ const en: Dict = {
   disable: "Turn off",
   confirmDeleteItem: "Delete this?",
   knowledge: "Memory & skills",
+  navKnowledge: "Memory",
+  navBrowser: "Browser",
+  cronShort: "Schedule",
+  presets: "Ready-made times",
+  presetDaily: "Every day at 8",
+  presetHourly: "Every hour",
+  presetWeekly: "Saturdays at 9",
+  presetMonthly: "1st of the month at 9",
+  downloadBridge: "Download the bridge file",
   memory: "Memory",
   memoryHelp: "Bots read this in every job and can change it.",
   sharedMemory: "Memory shared by all bots",
@@ -355,7 +373,7 @@ const en: Dict = {
   devices: "Personal computer",
   devicesHelp: "Bots work on your computer only in the chosen folders, with your approval, while the bridge is on.",
   deviceFolders: "Allowed folders (one per line)",
-  deviceOnce: "This command is shown only once. Run it on your computer, in the deploy/desktop-bridge folder:",
+  deviceOnce: "Get the bridge file. This command is shown only once. Run it in PowerShell, in that file's folder:",
   delegatedTo: "Work handed to",
 };
 
@@ -367,4 +385,8 @@ export const I18n = createContext<{ t: Dict; lang: UiLanguage; setLang: (l: UiLa
   setLang: () => {},
 });
 
-export const useT = () => useContext(I18n);
+/** Dates follow the panel language, so Persian text never holds scrambled English dates. */
+export const useT = () => {
+  const c = useContext(I18n);
+  return { ...c, locale: c.lang === "fa" ? "fa-IR" : "en-GB" };
+};
