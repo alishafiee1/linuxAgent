@@ -32,4 +32,10 @@
 
 - [001 — هستهٔ MVP](cycles/001-core-mvp/simple.md): منتظر دو آزمون واقعی با شما
 - [008 — صفحهٔ اتصال‌ها](cycles/008-connections/simple.md): منتظر آزمون با کلید واقعی
-- [013 — موتورهای دیگر و پیام صوتی](cycles/013-other-engines-and-voice/simple.md)
+- [015 — گفت‌وگوی کامل از بله و تلگرام](cycles/015-messenger-chat/simple.md)
+- [016 — انتخاب دستیار، مدل و گفت‌وگو](cycles/016-messenger-selectors/simple.md)
+- [017 — پیشرفت، توقف و ادامه](cycles/017-messenger-progress/simple.md)
+- [018 — فایل و عکس در پیام‌رسان](cycles/018-messenger-files/simple.md)
+- [019 — پیام صوتی](cycles/019-messenger-voice/simple.md)
+- [020 — گزارش‌ها و ساعت سکوت](cycles/020-messenger-digest/simple.md)
+- [013 — موتورهای دیگر](cycles/013-other-engines-and-voice/simple.md)

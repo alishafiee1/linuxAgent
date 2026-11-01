@@ -1,6 +1,6 @@
 ---
 schemaVersion: 2
-title: موتورهای دیگر و پیام صوتی
+title: موتورهای دیگر
 status: todo
 priority: medium
 workflow: standard
@@ -10,7 +10,7 @@ scope:
   forbidden: [BaleBot, hermes-gateway.service]
 ---
 
-کنار Claude موتورهای دیگری مثل Antigravity CLI اضافه می‌شوند و جواب‌ها در صورت درخواست صوتی فرستاده می‌شوند.
+کنار Claude موتورهای دیگری مثل Antigravity CLI اضافه می‌شوند. صدا به چرخهٔ ۰۱۹ رفت.
 
 ## Progress notes
 
