@@ -215,12 +215,30 @@ export interface Routine {
   cron: string | null;
   timezone: string;
   enabled: boolean;
-  notify: boolean;
+  /** Channels that receive the result. Empty means none. */
+  deliver: string[];
+  /** The bot that made it. Null when the person made it. */
+  createdBy: string | null;
   nextRunAt: string | null;
-  lastRunAt: string | null;
-  lastRunId: string | null;
-  lastRunState: RunState | null;
+  /** Runs in the next 24 hours, for the timeline. */
+  upcoming: string[];
+  last: RoutineLastRun | null;
   createdAt: string;
+}
+
+export interface RoutineLastRun {
+  runId: string;
+  conversationId: string;
+  state: RunState;
+  at: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface RoutinePreview {
+  valid: boolean;
+  error: string | null;
+  next: string[];
 }
 
 export interface RoutineInput {
@@ -231,7 +249,7 @@ export interface RoutineInput {
   cron?: string | null;
   timezone?: string;
   enabled?: boolean;
-  notify?: boolean;
+  deliver?: string[];
 }
 
 // --- skills and memory (cycle 002)

@@ -41,7 +41,7 @@ const routineInput = z.object({
   cron: z.string().max(100).nullable().optional(),
   timezone: z.string().max(60).optional(),
   enabled: z.boolean().optional(),
-  notify: z.boolean().optional(),
+  deliver: z.array(z.string()).max(5).optional(),
 });
 const skillInput = z.object({ name: z.string(), description: z.string(), body: z.string() });
 const vaultInput = z.object({ name: z.string(), username: z.string().max(200).nullable().optional(), secret: z.string().max(5000).optional(), site: z.string().max(300).nullable().optional() });
@@ -82,6 +82,10 @@ export function registerExtRoutes(app: FastifyInstance, d: ExtDeps): void {
   app.get("/api/routines", async () => d.routines.list());
   app.post("/api/routines", async (req) => d.routines.create(parse(routineInput, req.body) as RoutineInput));
   app.patch<{ Params: { id: string } }>("/api/routines/:id", async (req) => d.routines.update(req.params.id, parse(routineInput.omit({ trigger: true }).partial(), req.body) as Partial<RoutineInput>));
+  app.post("/api/routines/preview", async (req) => {
+    const b = parse(z.object({ cron: z.string().max(100), timezone: z.string().max(60) }), req.body);
+    return d.routines.preview(b.cron, b.timezone);
+  });
   app.delete<{ Params: { id: string } }>("/api/routines/:id", async (req) => {
     d.routines.delete(req.params.id);
     return { ok: true };

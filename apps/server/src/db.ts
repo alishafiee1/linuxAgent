@@ -159,6 +159,11 @@ const MIGRATIONS: string[] = [
     question_index INTEGER NOT NULL
   );
   `,
+  `
+  ALTER TABLE routines ADD COLUMN created_by TEXT;
+  ALTER TABLE routines ADD COLUMN deliver TEXT NOT NULL DEFAULT '["bale","telegram"]';
+  UPDATE routines SET deliver = '[]' WHERE notify = 0;
+  `,
 ];
 
 export function openDb(path: string): Db {

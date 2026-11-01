@@ -7,12 +7,19 @@ import { LearningService, LEARNER_NAME } from "../src/learning.js";
 import { Notifier, type FetchLike } from "../src/notify/notifier.js";
 import { PlatformService } from "../src/platforms.js";
 import { RequestService } from "../src/requests.js";
+import { RoutineService } from "../src/routines/service.js";
+import { buildPanelTools } from "../src/panelTools.js";
+import { PageService } from "../src/pages.js";
+import { Connectors } from "../src/connectors.js";
+import { BrowserService } from "../src/browser/service.js";
+import { VaultService } from "../src/vault.js";
+import { BridgeService } from "../src/bridge.js";
 import { KnowledgeService } from "../src/knowledge.js";
 import { BotService } from "../src/bots.js";
 import { MAX_UPLOAD_BYTES, safeName, UploadService } from "../src/uploads.js";
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { MAX_MESSAGE_DEPTH } from "../src/runs/orchestrator.js";
-import { deferred, FakeEngine, ok, setup, tick } from "./helpers.js";
+import { deferred, FakeEngine, KEY, ok, setup, tick } from "./helpers.js";
 
 const signal = () => new AbortController().signal;
 const COLOR = { question: "چه رنگی؟", options: [{ label: "گرم" }, { label: "آبی" }] };
@@ -532,5 +539,100 @@ describe("plan limits", () => {
     const t = setup(new FakeEngine(() => [ok()]));
     t.settings.savePlanLimit({ status: "allowed", resetsAt: null });
     expect(t.settings.planLimits()).toHaveLength(0);
+  });
+});
+
+describe("routines made by bots", () => {
+  function tools() {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const files = new AgentFiles();
+    const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator });
+    const vault = new VaultService(t.db, KEY);
+    const list = buildPanelTools(
+      {
+        bots: t.bots,
+        orchestrator: () => t.orchestrator,
+        pages: new PageService(t.db, files, join(t.dir, "workspace"), "https://p"),
+        connectors: new Connectors(t.settings, "https://p"),
+        browser: new BrowserService({ bots: t.bots, vault, files, agentHome: t.dir, agentExec: [], chromium: "chromium" }),
+        bridge: new BridgeService(t.db),
+        platforms: new PlatformService(t.settings, "https://p"),
+        uploads: new UploadService(join(t.dir, "tmp"), files, join(t.dir, "workspace"), join(t.dir, "bots")),
+        routines,
+      },
+      { run: t.orchestrator.submit(t.conv.id, "x"), bot: t.bot, signal: new AbortController().signal },
+    );
+    return { t, routines, tool: (n: string) => list.find((x) => x.name === n)! };
+  }
+
+  it("asks first, records the maker, and keeps it through an edit", async () => {
+    expect(evaluateTool("mcp__cwp__create_routine", {}, "/h").auto).toBe(false);
+    expect(evaluateTool("mcp__cwp__list_routines", {}, "/h").auto).toBe(true);
+    const { t, routines, tool } = tools();
+    const out = await tool("create_routine").run({ name: "گزارش", cron: "0 8 * * *", prompt: "بنویس", deliver: ["telegram"] });
+    expect(out).toContain("گزارش");
+    const [r] = routines.list();
+    expect(r).toMatchObject({ createdBy: "Coder", deliver: ["telegram"], timezone: "Asia/Tehran", botId: t.bot.id });
+    routines.update(r!.id, { name: "تازه" });
+    expect(routines.get(r!.id).createdBy).toBe("Coder");
+    expect(await tool("list_routines").run({})).toContain("made by Coder");
+    await t.orchestrator.idle();
+  });
+
+  it("refuses a bad schedule and an unknown bot, with no webhook way in", async () => {
+    const { t, routines, tool } = tools();
+    await expect(tool("create_routine").run({ name: "x", cron: "nope", prompt: "p" })).rejects.toThrow();
+    await expect(tool("create_routine").run({ name: "x", cron: "0 8 * * *", prompt: "p", bot: "Ghost" })).rejects.toThrow();
+    expect(routines.list()).toHaveLength(0);
+    await t.orchestrator.idle();
+  });
+
+  it("shows what approval will create in plain words", () => {
+    const text = describeTool("mcp__cwp__create_routine", { name: "صبح", cron: "0 8 * * *", prompt: "گزارش بده", deliver: [] });
+    expect(text).toContain("گزارش بده");
+    expect(text).toContain("0 8 * * *");
+    expect(text).toContain("هیچ‌جا");
+  });
+});
+
+describe("routine page data", () => {
+  it("reports the last run with its usage and sends only to chosen channels", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const sent: string[][] = [];
+    const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator, notify: async (_m, c) => void sent.push(c) });
+    const { routine } = routines.create({ botId: t.bot.id, name: "r", prompt: "p", trigger: "cron", cron: "0 8 * * *", deliver: ["bale"] });
+    routines.fire(routine.id);
+    await t.orchestrator.idle();
+    await tick(5);
+    const r = routines.get(routine.id);
+    expect(r.last).toMatchObject({ state: "done", inputTokens: 10, outputTokens: 5 });
+    expect(r.last!.conversationId).toBeTruthy();
+    expect(sent).toEqual([["bale"]]);
+    const silent = routines.create({ botId: t.bot.id, name: "s", prompt: "p", trigger: "cron", cron: "0 8 * * *", deliver: [] }).routine;
+    routines.fire(silent.id);
+    await t.orchestrator.idle();
+    await tick(5);
+    expect(sent).toHaveLength(1);
+    expect(() => routines.create({ botId: t.bot.id, name: "b", prompt: "p", trigger: "cron", cron: "0 8 * * *", deliver: ["sms"] })).toThrow();
+  });
+
+  it("refuses an empty task and lists runs for the timeline", () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator });
+    expect(() => routines.create({ botId: t.bot.id, name: "x", prompt: "  ", trigger: "cron", cron: "0 8 * * *" })).toThrow();
+    const hourly = routines.create({ botId: t.bot.id, name: "h", prompt: "p", trigger: "cron", cron: "0 * * * *" }).routine;
+    expect(hourly.upcoming.length).toBeGreaterThanOrEqual(23);
+    const dense = routines.create({ botId: t.bot.id, name: "d", prompt: "p", trigger: "cron", cron: "* * * * *" }).routine;
+    expect(dense.upcoming).toHaveLength(300);
+    expect(routines.update(hourly.id, { enabled: false }).upcoming).toEqual([]);
+  });
+
+  it("previews with the same rules that save", () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator });
+    expect(routines.preview("0 8 * * *", "Asia/Tehran").valid).toBe(true);
+    expect(routines.preview("0 8 * * *", "Asia/Tehran").next).toHaveLength(3);
+    for (const bad of ["5abc * * * *", "5-99 * * * *", "nope", "0 8 31 2 *"]) expect(routines.preview(bad, "UTC").valid).toBe(false);
+    expect(routines.preview("0 8 * * *", "Mars/Base").valid).toBe(false);
   });
 });

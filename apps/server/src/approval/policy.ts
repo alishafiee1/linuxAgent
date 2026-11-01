@@ -50,6 +50,7 @@ const PANEL_AUTO = new Set([
   "request_connection",
   "request_browser_takeover",
   "list_connections",
+  "list_routines",
   "open_browser",
   "update_page",
   "gmail_search",
@@ -62,6 +63,7 @@ const PANEL_AUTO = new Set([
 
 const PANEL_REASONS: Record<string, string> = {
   publish_page: "انتشار صفحهٔ عمومی",
+  create_routine: "ساخت روتین خودکار",
   gmail_send: "ارسال ایمیل",
   calendar_create: "ساخت رویداد در تقویم",
   github_create_issue: "ساخت issue در GitHub",

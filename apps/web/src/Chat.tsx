@@ -22,10 +22,10 @@ const STATE_ICONS: Record<string, (p: IconProps) => ReturnType<typeof IconBot>> 
   cancelled: IconStop,
 };
 
-export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) {
+export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; activityTick: number; initialConversation?: string | null }) {
   const { t } = useT();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [convId, setConvId] = useState<string | null>(null);
+  const [convId, setConvId] = useState<string | null>(initialConversation ?? null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
