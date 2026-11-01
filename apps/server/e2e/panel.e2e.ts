@@ -53,6 +53,21 @@ class ScriptedEngine implements Engine {
       out = await tool("send_file").run({ path: "chart.png" });
     }
     if (o.prompt.includes("/uploads/")) out = `I got ${o.prompt.match(/\/uploads\/\S+/)?.[0] ?? ""}`;
+    if (o.prompt.includes("MKROUTINE")) {
+      const allowed = await gate("create_routine", { name: "ساختهٔ بات", cron: "0 9 * * *", prompt: "گزارش بده" });
+      out = allowed ? await tool("create_routine").run({ name: "ساختهٔ بات", cron: "0 9 * * *", prompt: "گزارش بده" }) : "refused";
+    }
+    if (o.prompt.includes("SLOWSTEP")) {
+      const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      await pause(1200);
+      yield { kind: "tool_use", id: "t1", name: "Read", input: { file_path: "/home/agent/workspace/گزارش.md" } };
+      await pause(1200);
+      yield { kind: "tool_result", toolUseId: "t1", content: "x", isError: false };
+      await pause(1200);
+      yield { kind: "tool_use", id: "t2", name: "Bash", input: { command: "ls", description: "فهرست فایل‌ها" } };
+      await pause(1200);
+      yield { kind: "tool_result", toolUseId: "t2", content: "x", isError: false };
+    }
     if (o.prompt.includes("SEND")) out = await tool("send_message_to_bot").run({ bot: "دوم", message: "سلام" });
     if (o.prompt.includes("WRITE")) {
       const input = { connection: "github", method: "POST", path: "/repos/a/b/issues" };
@@ -68,6 +83,7 @@ let page: Page;
 let base: string;
 let requests: RequestService;
 let workspace: string;
+let settingsStore: SettingsStore;
 let bots: BotService;
 let close: () => Promise<void>;
 let login: { password: string; secret: string };
@@ -80,6 +96,7 @@ beforeAll(async () => {
   const key = Buffer.alloc(32, 9);
   const db = openDb(":memory:");
   const settings = new SettingsStore(db, key);
+  settingsStore = settings;
   const files = new AgentFiles();
   bots = new BotService(db, join(dir, "bots"));
   const approvals = new ApprovalService(db);
@@ -109,7 +126,7 @@ beforeAll(async () => {
     requests,
     workspaceDir: join(dir, "workspace"),
     agentHome: dir,
-    toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser: browserSvc, bridge, platforms, uploads }, ctx),
+    toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser: browserSvc, bridge, platforms, uploads, routines }, ctx),
   });
   approvals.onChange({
     created: (a) => events.activity({ kind: "approval", approvalId: a.id, state: a.state }),
@@ -361,6 +378,128 @@ describe.skipIf(!available)("panel end to end", () => {
     expect(await row.locator("button").count()).toBe(0);
     const status = await page.evaluate(async () => (await fetch("/api/skills/panel-guide", { method: "DELETE", headers: { "x-cwp": "1" } })).status);
     expect(status).toBe(403);
+  });
+
+  it("shows plan limits and top usage on the usage page", async () => {
+    await page.evaluate(() => undefined);
+    settingsStore.savePlanLimit({ status: "allowed_warning", resetsAt: Date.now() + 86_400_000, limitType: "seven_day", utilization: 0.85 });
+    await send("سلام");
+    await page.locator(".activity").waitFor({ state: "detached" });
+    await openPage("مصرف");
+    const limit = page.locator(".plan-limit", { hasText: "سقف هفتگی" });
+    await limit.waitFor();
+    expect(await limit.locator('[role="progressbar"]').getAttribute("aria-valuenow")).toBe("85");
+    await page.locator(".top-usage").first().waitFor();
+    await shot("usage");
+  });
+
+  it("makes, edits, runs and deletes a routine in the dialog", async () => {
+    await openPage("روتین‌ها");
+    await page.locator(".rt-page button.primary").click();
+    const dlg = page.locator("dialog.rt-dialog");
+    await dlg.waitFor();
+    await dlg.locator("button.primary").click();
+    await dlg.locator(".err").waitFor();
+
+    await dlg.locator("input").first().fill("خلاصهٔ صبح");
+    await dlg.locator("textarea").fill("سلام");
+    await dlg.locator(".rt-seg button", { hasText: "دلخواه" }).click();
+    await dlg.locator(".rt-cron-input").fill("5abc * * * *");
+    await dlg.locator('[data-testid="cron-preview"].err').waitFor();
+    await dlg.locator("button.primary").click();
+    await expect.poll(() => dlg.isVisible()).toBe(true);
+
+    await dlg.locator(".rt-seg button", { hasText: "هفتگی" }).click();
+    await dlg.locator('.rt-days button[title="دوشنبه"]').click();
+    await dlg.locator('[data-testid="cron-preview"].ok').waitFor();
+    await shot("routine-dialog");
+    await dlg.locator(".rt-seg button", { hasText: "روزانه" }).click();
+    await dlg.locator(".rt-field input[type=checkbox]").first().uncheck();
+    await dlg.locator("button.primary").click();
+    await dlg.waitFor({ state: "detached" });
+
+    const row = page.locator(".rt-row", { hasText: "خلاصهٔ صبح" });
+    await row.waitFor();
+    expect(await row.innerText()).toContain("هر روز ساعت");
+    await page.locator(".rt-tl-mark").first().waitFor();
+    await row.locator('button[aria-label^="اجرا"], button[title="همین حالا اجرا کن"]').click();
+    const last = row.locator(".rt-last");
+    await last.waitFor();
+    await expect.poll(() => last.innerText()).toBe("انجام شد");
+    await shot("routines");
+    await last.click();
+    await page.locator(".chat").waitFor();
+    expect(await page.locator(".chat-head select option:checked").innerText()).toContain("خلاصهٔ صبح");
+
+    await openPage("روتین‌ها");
+    await page.locator(".rt-row", { hasText: "خلاصهٔ صبح" }).locator(".rt-switch input").uncheck();
+    await expect.poll(async () => page.locator(".rt-row", { hasText: "خلاصهٔ صبح" }).innerText()).toContain("متوقف");
+    await page.locator(".rt-row", { hasText: "خلاصهٔ صبح" }).locator('button[aria-label^="حذف"]').click();
+    await page.locator(".rt-row", { hasText: "خلاصهٔ صبح" }).locator(".rt-actions button.danger").click();
+    await page.locator(".rt-row", { hasText: "خلاصهٔ صبح" }).waitFor({ state: "detached" });
+  });
+
+  it("shows a webhook address once, and a schedule that cannot be simplified as written", async () => {
+    await openPage("روتین‌ها");
+    await page.locator(".rt-page button.primary").click();
+    const dlg = page.locator("dialog.rt-dialog");
+    await dlg.locator("input").first().fill("خبر بیرونی");
+    await dlg.locator("textarea").fill("ببین");
+    await dlg.locator(".rt-seg button", { hasText: "خبر از بیرون" }).click();
+    await dlg.locator("button.primary").click();
+    expect(await page.locator('[data-testid="hook-url"]').innerText()).toContain("/hook/");
+
+    await page.locator(".rt-page button.primary").click();
+    await dlg.locator("input").first().fill("پرتکرار");
+    await dlg.locator("textarea").fill("ببین");
+    await dlg.locator(".rt-seg button", { hasText: "دلخواه" }).click();
+    await dlg.locator(".rt-cron-input").fill("*/15 * * * *");
+    await dlg.locator('[data-testid="cron-preview"].ok').waitFor();
+    await dlg.locator("button.primary").click();
+    const row = page.locator(".rt-row", { hasText: "پرتکرار" });
+    await row.waitFor();
+    expect(await row.innerText()).not.toContain("هر ساعت");
+    expect(await row.innerText()).toContain("دلخواه");
+    for (const name of ["پرتکرار", "خبر بیرونی"]) {
+      const r = page.locator(".rt-row", { hasText: name });
+      await r.locator('button[aria-label^="حذف"]').click();
+      await r.locator(".rt-actions button.danger").click();
+      await r.waitFor({ state: "detached" });
+    }
+  });
+
+  it("lets a bot make a routine after approval, and marks it as the bot's", async () => {
+    await send("MKROUTINE");
+    const approval = page.locator(".approval", { hasText: "ساخت روتین خودکار" });
+    await approval.waitFor();
+    expect(await approval.locator(".approval-summary").innerText()).toContain("گزارش بده");
+    await approval.locator("button.primary").click();
+    await page.locator(".bubble.assistant", { hasText: "ساختهٔ بات" }).waitFor();
+    await openPage("روتین‌ها");
+    await page.locator(".rt-seg button", { hasText: "بات‌ها" }).click();
+    const row = page.locator(".rt-row", { hasText: "ساختهٔ بات" });
+    await row.locator(".rt-maker.bot").waitFor();
+    await row.locator('button[aria-label^="ویرایش"]').click();
+    const dlg = page.locator("dialog.rt-dialog");
+    expect(await dlg.innerText()).toContain("ساختهٔ بات اول");
+    await dlg.locator("input").first().fill("ساختهٔ بات ۲");
+    await dlg.locator("button.primary").click();
+    await page.locator(".rt-row", { hasText: "ساختهٔ بات ۲" }).locator(".rt-maker.bot").waitFor();
+    const r = page.locator(".rt-row", { hasText: "ساختهٔ بات ۲" });
+    await r.locator('button[aria-label^="حذف"]').click();
+    await r.locator(".rt-actions button.danger").click();
+  });
+
+  it("says what the bot is doing while it works, with time and steps", async () => {
+    await send("SLOWSTEP");
+    const label = page.locator(".activity").last();
+    await label.locator(".activity-text", { hasText: "در حال فکر کردن" }).waitFor();
+    await label.locator(".activity-text", { hasText: "خواندن فایل گزارش.md" }).waitFor();
+    await shot("activity");
+    await label.locator(".activity-text", { hasText: "اجرای دستور: فهرست فایل‌ها" }).waitFor();
+    expect(await label.innerText()).toContain("2 قدم");
+    expect(await label.locator('.activity-meta[dir="ltr"]').innerText()).toMatch(/^\d+:\d\d$/);
+    await page.locator(".activity").waitFor({ state: "detached" });
   });
 
   it("lets one bot message another without waiting", async () => {

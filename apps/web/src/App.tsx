@@ -7,7 +7,8 @@ import { ConnectionsPage } from "./connections";
 import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
-import { BrowserPage, KnowledgePage, RoutinesPage, SharedPagesPage } from "./pagesExt";
+import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
+import { RoutinesPage } from "./routines";
 
 export interface Status {
   runs: { running: number; queued: number; waitingApproval: number; waitingLimit: number };
@@ -139,6 +140,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [dialog, setDialog] = useState<{ bot: Bot | null } | null>(null);
   const [menu, setMenu] = useState<{ bot: Bot; x: number; y: number } | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [openConversation, setOpenConversation] = useState<string | null>(null);
 
   const loadBots = useCallback(async () => {
     const list = await api.get<Bot[]>("/api/bots");
@@ -258,6 +260,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               className={`bot-item ${b.id === botId && view === "chat" ? "active" : ""}`}
               onClick={() => {
                 setBotId(b.id);
+                setOpenConversation(null);
                 setView("chat");
                 setDrawer(false);
               }}
@@ -293,13 +296,21 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         {status?.lowDiskMessage && <div className="banner warn">{status.lowDiskMessage}</div>}
         {view === "chat" &&
           (bot ? (
-            <Chat key={bot.id} bot={bot} activityTick={activityTick} />
+            <Chat key={bot.id} bot={bot} activityTick={activityTick} initialConversation={openConversation} />
           ) : (
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}
         {view === "approvals" && <ApprovalsPage activityTick={activityTick} />}
         {view === "connections" && <ConnectionsPage />}
-        {view === "routines" && <RoutinesPage bots={bots} activityTick={activityTick} />}
+        {view === "routines" && <RoutinesPage
+            bots={bots}
+            activityTick={activityTick}
+            onOpenConversation={(id, conversationId) => {
+              setBotId(id);
+              setOpenConversation(conversationId);
+              setView("chat");
+            }}
+          />}
         {view === "knowledge" && <KnowledgePage />}
         {view === "browser" && <BrowserPage bots={bots} />}
         {view === "pages" && <SharedPagesPage />}

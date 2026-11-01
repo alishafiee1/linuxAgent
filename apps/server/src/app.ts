@@ -275,7 +275,20 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
       )
       .all(from, to) as UsageReport["rows"];
     const lim = d.db.prepare("SELECT MIN(limit_reset_at) AS at, COUNT(*) AS n FROM runs WHERE state = 'waiting_limit'").get() as { at: string | null; n: number };
-    return { rows, limit: { waiting: lim.n > 0, resetAt: lim.at } };
+    const since = (ms: number): string => new Date(Date.now() - ms).toISOString();
+    const week = since(7 * 86_400_000);
+    const tokens = (from: string): number => (d.db.prepare("SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS n FROM runs WHERE created_at >= ?").get(from) as { n: number }).n;
+    const sevenDays = tokens(week);
+    const top = (
+      d.db
+        .prepare(
+          `SELECT c.id AS conversationId, c.title, b.name AS botName, SUM(r.input_tokens + r.output_tokens) AS tokens
+           FROM runs r JOIN conversations c ON c.id = r.conversation_id JOIN bots b ON b.id = c.bot_id
+           WHERE r.created_at >= ? GROUP BY c.id HAVING tokens > 0 ORDER BY tokens DESC LIMIT 8`,
+        )
+        .all(week) as Omit<UsageReport["top"][number], "share">[]
+    ).map((t) => ({ ...t, share: sevenDays ? t.tokens / sevenDays : 0 }));
+    return { rows, limit: { waiting: lim.n > 0, resetAt: lim.at }, plan: d.settings.planLimits(), top, windows: { fiveHours: tokens(since(5 * 3_600_000)), sevenDays } };
   });
 
   // --- files (spec R15)

@@ -482,6 +482,7 @@ export class Orchestrator {
         this.d.events.append(runId, "tool_result", { toolUseId: ev.toolUseId, content: ev.content, isError: ev.isError });
         break;
       case "rate_limit":
+        this.d.settings.savePlanLimit(ev);
         if (ev.status !== "allowed") this.d.events.append(runId, "notice", { rateLimit: ev.status, resetsAt: ev.resetsAt });
         break;
       case "result":

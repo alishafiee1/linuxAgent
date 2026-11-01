@@ -117,6 +117,30 @@ export interface UsageRow {
 export interface UsageReport {
   rows: UsageRow[];
   limit: { waiting: boolean; resetAt: string | null };
+  /** What the engine last reported per limit. It only reports the limit closest to its end. */
+  plan: PlanLimit[];
+  /** The biggest conversations of the last seven days. */
+  top: UsageTop[];
+  /** Tokens counted by the panel, per window. */
+  windows: { fiveHours: number; sevenDays: number };
+}
+
+export interface PlanLimit {
+  type: string;
+  status: "allowed" | "allowed_warning" | "rejected";
+  /** 0 to 1. Null when the engine gave no figure. */
+  utilization: number | null;
+  resetsAt: string | null;
+  reportedAt: string;
+}
+
+export interface UsageTop {
+  conversationId: string;
+  title: string;
+  botName: string;
+  tokens: number;
+  /** Of all tokens the panel counted in the last seven days, not of the plan. */
+  share: number;
 }
 
 export interface FileEntry {
@@ -191,12 +215,30 @@ export interface Routine {
   cron: string | null;
   timezone: string;
   enabled: boolean;
-  notify: boolean;
+  /** Channels that receive the result. Empty means none. */
+  deliver: string[];
+  /** The bot that made it. Null when the person made it. */
+  createdBy: string | null;
   nextRunAt: string | null;
-  lastRunAt: string | null;
-  lastRunId: string | null;
-  lastRunState: RunState | null;
+  /** Runs in the next 24 hours, for the timeline. */
+  upcoming: string[];
+  last: RoutineLastRun | null;
   createdAt: string;
+}
+
+export interface RoutineLastRun {
+  runId: string;
+  conversationId: string;
+  state: RunState;
+  at: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface RoutinePreview {
+  valid: boolean;
+  error: string | null;
+  next: string[];
 }
 
 export interface RoutineInput {
@@ -207,7 +249,7 @@ export interface RoutineInput {
   cron?: string | null;
   timezone?: string;
   enabled?: boolean;
-  notify?: boolean;
+  deliver?: string[];
 }
 
 // --- skills and memory (cycle 002)

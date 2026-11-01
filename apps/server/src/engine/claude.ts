@@ -69,6 +69,8 @@ export function mapSdkMessage(m: SDKMessage): EngineEvent[] {
         kind: "rate_limit",
         status: m.rate_limit_info.status,
         resetsAt: r === undefined ? null : r < 1e12 ? r * 1000 : r,
+        limitType: m.rate_limit_info.rateLimitType,
+        utilization: m.rate_limit_info.utilization ?? null,
       });
       break;
     }

@@ -1,4 +1,4 @@
-import type { PublicSettings, SettingsInput, UiLanguage } from "@linux-agent/shared";
+import type { PlanLimit, PublicSettings, SettingsInput, UiLanguage } from "@linux-agent/shared";
 import type { Db } from "./db.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
 
@@ -57,6 +57,21 @@ export class SettingsStore {
 
   keys(prefix: string): string[] {
     return (this.db.prepare("SELECT key FROM settings WHERE key LIKE ? ESCAPE '\\'").all(`${prefix.replace(/[\\%_]/g, "\\$&")}%`) as { key: string }[]).map((r) => r.key);
+  }
+
+  /** Keeps the engine's last word on each subscription limit, so the usage page can show it between runs. */
+  savePlanLimit(ev: { status: PlanLimit["status"]; resetsAt: number | null; limitType?: string; utilization?: number | null }): void {
+    if (!ev.limitType) return;
+    const limit: PlanLimit = { type: ev.limitType, status: ev.status, utilization: ev.utilization ?? null, resetsAt: ev.resetsAt === null ? null : new Date(ev.resetsAt).toISOString(), reportedAt: new Date().toISOString() };
+    this.set(`planLimit.${ev.limitType}`, JSON.stringify(limit));
+  }
+
+  /** A limit whose reset time has passed says nothing any more, so it is left out. */
+  planLimits(nowMs = Date.now()): PlanLimit[] {
+    return this.keys("planLimit.")
+      .map((k) => JSON.parse(this.get(k)!) as PlanLimit)
+      .filter((l) => !l.resetsAt || Date.parse(l.resetsAt) > nowMs)
+      .sort((a, b) => a.type.localeCompare(b.type));
   }
 
   publicView(): PublicSettings {

@@ -71,7 +71,7 @@ const orchestrator: Orchestrator = new Orchestrator({
   networkUp: () => proxy.isUp(),
   requests,
   promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor()].filter(Boolean).join("\n\n"),
-  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms, uploads }, ctx),
+  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms, uploads, routines }, ctx),
   mcpServersFor: (bot) => browser.mcpServers(bot),
   policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),
 });
@@ -87,7 +87,7 @@ proxy.onChange((s) => {
 
 notifier.attachRequests(requests, config.publicBaseUrl);
 const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
-const routines = new RoutineService({ db, bots, orchestrator, notify: (text) => notifier.notify(text) });
+const routines = new RoutineService({ db, bots, orchestrator, notify: (text, channels) => notifier.notify(text, channels) });
 
 const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
 

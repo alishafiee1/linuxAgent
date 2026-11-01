@@ -7,6 +7,7 @@ import type { PanelTool } from "./engine/types.js";
 import type { PageService } from "./pages.js";
 import type { PlatformService } from "./platforms.js";
 import type { UploadService } from "./uploads.js";
+import type { RoutineService } from "./routines/service.js";
 import type { Orchestrator, RunContext } from "./runs/orchestrator.js";
 
 export interface PanelToolDeps {
@@ -18,6 +19,7 @@ export interface PanelToolDeps {
   bridge: BridgeService;
   platforms: PlatformService;
   uploads: UploadService;
+  routines: RoutineService;
 }
 
 const questionShape = z.object({
@@ -51,6 +53,23 @@ export function buildPanelTools(d: PanelToolDeps, ctx: RunContext): PanelTool[] 
         const file = d.uploads.locate(String(a.path));
         d.orchestrator().addEvent(ctx.run.id, "file", { file, caption: a.caption === undefined ? null : String(a.caption) });
         return `Sent ${file.name} to the user.`;
+      },
+    },
+    {
+      name: "list_routines",
+      description: "List the routines that exist, with their schedule, bot and next run. Check this before making a new one.",
+      shape: {},
+      run: async () => d.routines.list().map((r) => `${r.name} | ${r.botName} | ${r.cron ?? "webhook"} ${r.timezone} | ${r.enabled ? `next ${r.nextRunAt ?? "-"}` : "paused"}${r.createdBy ? ` | made by ${r.createdBy}` : ""}`).join("\n") || "(none)",
+    },
+    {
+      name: "create_routine",
+      description: "Set up work that repeats on a schedule. The user approves it first. Each run starts with an empty conversation, so `prompt` must hold the whole task. cron has five parts: minute hour day month weekday, in `timezone` (default Asia/Tehran). `bot` is another bot's name, default you. `deliver` lists channels for the result: bale, telegram; default both, empty for none. Read the Create routines skill first.",
+      shape: { name: z.string(), cron: z.string(), prompt: z.string(), timezone: z.string().optional(), bot: z.string().optional(), deliver: z.array(z.enum(["bale", "telegram"])).optional() },
+      run: async (a) => {
+        const target = a.bot === undefined ? ctx.bot : d.bots.list().find((b) => b.name === a.bot);
+        if (!target) throw new Error(`No bot named ${String(a.bot)}.`);
+        const { routine } = d.routines.create({ botId: target.id, name: String(a.name), prompt: String(a.prompt), trigger: "cron", cron: String(a.cron), timezone: a.timezone === undefined ? undefined : String(a.timezone), deliver: a.deliver as string[] | undefined }, ctx.bot.name);
+        return `Created "${routine.name}". Next run: ${routine.nextRunAt ?? "unknown"}.`;
       },
     },
     {

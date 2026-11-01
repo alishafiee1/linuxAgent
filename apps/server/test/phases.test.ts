@@ -89,13 +89,13 @@ describe("routines", () => {
     const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator, clock: () => clock, notify: async (m) => void sent.push(m) });
     const { routine } = routines.create({ botId: t.bot.id, name: "صبح", prompt: "گزارش بده", trigger: "cron", cron: "0 8 * * *" });
     routines.tick();
-    expect(routines.get(routine.id).lastRunId).toBeNull();
+    expect(routines.get(routine.id).last).toBeNull();
     clock = Date.parse("2026-01-10T04:31:00Z");
     routines.tick();
     await t.orchestrator.idle();
     await tick(5);
     const after = routines.get(routine.id);
-    expect(after.lastRunState).toBe("done");
+    expect(after.last?.state).toBe("done");
     expect(after.nextRunAt).toBe("2026-01-11T04:30:00.000Z");
     expect(sent[0]).toContain("گزارش صبح");
     routines.tick();

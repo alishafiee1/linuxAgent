@@ -39,7 +39,7 @@ export type EngineEvent =
   | { kind: "tool_use"; id: string; name: string; input: unknown }
   | { kind: "tool_result"; toolUseId: string; content: string; isError: boolean }
   /** `resetsAt` in ms since epoch. */
-  | { kind: "rate_limit"; status: "allowed" | "allowed_warning" | "rejected"; resetsAt: number | null }
+  | { kind: "rate_limit"; status: "allowed" | "allowed_warning" | "rejected"; resetsAt: number | null; limitType?: string; utilization?: number | null }
   | {
       kind: "result";
       ok: boolean;

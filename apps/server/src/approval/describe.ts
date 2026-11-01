@@ -43,6 +43,8 @@ export function describeTool(toolName: string, input: unknown): string {
       return [`مخزن: ${ltr(String(i.repo ?? ""))}`, `عنوان: ${String(i.title ?? "")}`, "", cut(String(i.body ?? ""))].join("\n");
     case "github_comment":
       return [`مخزن: ${ltr(String(i.repo ?? ""))} #${String(i.number ?? "")}`, "", cut(String(i.body ?? ""))].join("\n");
+    case "create_routine":
+      return [`نام: ${String(i.name ?? "")}`, `زمان‌بندی: ${ltr(String(i.cron ?? ""))} (${ltr(String(i.timezone ?? "Asia/Tehran"))})`, `بات: ${String(i.bot ?? "همین بات")}`, `ارسال به: ${Array.isArray(i.deliver) ? i.deliver.join("، ") || "هیچ‌جا" : "بله و تلگرام"}`, "", "کار:", cut(String(i.prompt ?? ""))].join("\n");
     case "publish_page":
       return [`عنوان: ${String(i.title ?? "")}`, `نام: ${ltr(String(i.name ?? ""))}`, `حجم: ${String(i.html ?? "").length} نویسه`].join("\n");
     case "desktop_run":
