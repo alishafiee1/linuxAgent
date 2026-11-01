@@ -41,6 +41,50 @@ export const BASH_APPROVAL_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\bchmod\s+-R\b|\bchown\b/, label: "تغییر دسترسی فایل‌ها" },
 ];
 
+// Panel tools. Anything not listed here asks first, including tools added later.
+const PANEL_AUTO = new Set([
+  "delegate_to_bot",
+  "open_browser",
+  "update_page",
+  "gmail_search",
+  "gmail_read",
+  "calendar_list",
+  "github_list_issues",
+  "github_list_pulls",
+  "desktop_devices",
+]);
+
+const PANEL_REASONS: Record<string, string> = {
+  publish_page: "انتشار صفحهٔ عمومی",
+  gmail_send: "ارسال ایمیل",
+  calendar_create: "ساخت رویداد در تقویم",
+  github_create_issue: "ساخت issue در GitHub",
+  github_comment: "نوشتن نظر در GitHub",
+  desktop_list: "دیدن پوشه روی کامپیوتر شخصی",
+  desktop_read: "خواندن فایل از کامپیوتر شخصی",
+  desktop_write: "نوشتن فایل روی کامپیوتر شخصی",
+  desktop_run: "اجرای دستور روی کامپیوتر شخصی",
+};
+
+// Looking at a page is safe; a click or typed text can submit a form, so those follow the setting.
+const BROWSER_READ = new Set([
+  "browser_navigate",
+  "browser_navigate_back",
+  "browser_snapshot",
+  "browser_take_screenshot",
+  "browser_wait_for",
+  "browser_tabs",
+  "browser_console_messages",
+  "browser_network_requests",
+  "browser_resize",
+  "browser_close",
+]);
+const BROWSER_INTERACT = new Set(["browser_click", "browser_type", "browser_hover", "browser_press_key", "browser_select_option", "browser_fill_form", "browser_drag", "browser_handle_dialog"]);
+
+export interface PolicyOptions {
+  browserClicksAuto?: boolean;
+}
+
 export type PolicyResult = { auto: true } | { auto: false; reason: string };
 
 function insideAllowedRoot(path: string, roots: string[]): boolean {
@@ -58,7 +102,7 @@ function bashWritesOutside(command: string, roots: string[]): string | null {
   return targets.find((t) => !insideAllowedRoot(t, writable)) ?? null;
 }
 
-export function evaluateTool(toolName: string, input: Record<string, unknown>, agentHome: string): PolicyResult {
+export function evaluateTool(toolName: string, input: Record<string, unknown>, agentHome: string, opts: PolicyOptions = {}): PolicyResult {
   if (READ_ONLY_TOOLS.has(toolName)) return { auto: true };
 
   if (FILE_WRITE_TOOLS.has(toolName)) {
@@ -74,6 +118,18 @@ export function evaluateTool(toolName: string, input: Record<string, unknown>, a
     const outside = bashWritesOutside(command, [agentHome]);
     if (outside) return { auto: false, reason: `نوشتن بیرون از ${agentHome}: ${outside}` };
     return { auto: true };
+  }
+
+  if (toolName.startsWith("mcp__cwp__")) {
+    const name = toolName.slice("mcp__cwp__".length);
+    return PANEL_AUTO.has(name) ? { auto: true } : { auto: false, reason: PANEL_REASONS[name] ?? `ابزار ${name}` };
+  }
+
+  if (toolName.startsWith("mcp__browser__")) {
+    const name = toolName.slice("mcp__browser__".length);
+    if (BROWSER_READ.has(name)) return { auto: true };
+    if (BROWSER_INTERACT.has(name)) return opts.browserClicksAuto ? { auto: true } : { auto: false, reason: "کلیک یا تایپ در مرورگر" };
+    return { auto: false, reason: `ابزار مرورگر: ${name}` };
   }
 
   if (toolName.startsWith("mcp__")) return { auto: false, reason: "ابزار سرویس بیرونی (MCP)" };

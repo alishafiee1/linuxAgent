@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import { api } from "./api";
 import { IconActivity, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
+import { Markdown } from "./Markdown";
 
 const ACTIVE = new Set(["queued", "running", "waiting_approval", "waiting_limit"]);
 
@@ -133,7 +134,7 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
       </div>
       <div className="composer">
         <form onSubmit={send}>
-          <textarea rows={2} value={text} placeholder={t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
+          <textarea rows={2} dir="auto" value={text} placeholder={t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
           <button className="primary send-btn" disabled={!text.trim()}>
             {t.send}
             <IconSend size={15} />
@@ -261,13 +262,13 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
           case "user":
             return (
               <div key={e.seq} className="msg">
-                <div className="bubble user">{String(p.text)}</div>
+                <div className="bubble user"><div dir="auto">{String(p.text)}</div></div>
               </div>
             );
           case "assistant_text":
             return (
               <div key={e.seq} className="msg">
-                <div className="bubble assistant">{String(p.text)}</div>
+                <div className="bubble assistant"><Markdown text={String(p.text)} /></div>
               </div>
             );
           case "tool_use": {
@@ -292,6 +293,14 @@ function RunView({ run, onChanged }: { run: Run; onChanged: () => void }) {
                 </div>
               );
             return null;
+          case "notice": {
+            const d = p.delegated as { botName: string } | undefined;
+            return d ? (
+              <div key={e.seq} className="msg state">
+                {t.delegatedTo} {d.botName}
+              </div>
+            ) : null;
+          }
           case "error":
             return (
               <div key={e.seq} className="msg err">

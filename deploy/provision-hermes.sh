@@ -11,7 +11,7 @@ id panel >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/c
 id agent >/dev/null 2>&1 || useradd --create-home --home-dir /home/agent --shell /bin/bash agent
 # useradd may create a 0700 home; the panel must reach the workspace and bots folders (.claude stays 0700).
 chmod 0711 /home/agent
-install -d -o agent -g agent -m 0755 /home/agent/workspace /home/agent/bots
+install -d -o agent -g agent -m 0755 /home/agent/workspace /home/agent/bots /home/agent/shared /home/agent/shared/skills /home/agent/browser
 install -d -o panel -g panel -m 0700 /var/lib/cwp
 install -d -o panel -g panel -m 0750 /var/backups/cwp
 install -d -o root -g panel -m 0750 /etc/cwp
@@ -23,7 +23,7 @@ if ! node -v 2>/dev/null | grep -q '^v2[2-9]'; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
-apt-get install -y sqlite3 sudo rsync
+apt-get install -y sqlite3 sudo rsync chromium
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
 

@@ -3,3 +3,11 @@ dist/
 *.db
 *.db-*
 .env
+# RODO: local state
+rodo/*/.rodo/
+rodo/*/inbox/
+# Designer handoff files, kept locally
+docs/linuxAgent-redesign-*
+
+# RODO: local state (and, once a board is bound, card files: they live on the board)
+rodo/**/*.rodo.md

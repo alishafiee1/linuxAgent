@@ -20,6 +20,7 @@ export interface Config {
   clashApiUrl: string;
   clashSecretPath: string;
   webDist: string | null;
+  chromium: string;
   cookieSecure: boolean;
   publicBaseUrl: string;
 }
@@ -65,6 +66,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     clashApiUrl: env.CWP_CLASH_API ?? "http://127.0.0.1:9090",
     clashSecretPath: env.CWP_CLASH_SECRET_PATH ?? "/etc/cwp/clash-secret",
     webDist: env.CWP_WEB_DIST ?? null,
+    chromium: env.CWP_CHROMIUM ?? "/usr/bin/chromium",
     cookieSecure: (env.CWP_COOKIE_SECURE ?? "true") !== "false",
     publicBaseUrl: env.CWP_PUBLIC_BASE_URL ?? "https://agent.roditeam.ir",
   };

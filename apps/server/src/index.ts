@@ -4,7 +4,15 @@ import { buildApp } from "./app.js";
 import { BotService } from "./bots.js";
 import { loadConfig, loadEnvFile } from "./config.js";
 import { openDb } from "./db.js";
+import { BridgeService } from "./bridge.js";
+import { BrowserService } from "./browser/service.js";
+import { Connectors } from "./connectors.js";
 import { ClaudeAgentEngine } from "./engine/claude.js";
+import { AgentFiles, KnowledgeService } from "./knowledge.js";
+import { PageService } from "./pages.js";
+import { buildPanelTools } from "./panelTools.js";
+import { RoutineService } from "./routines/service.js";
+import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
 import { ProxyService } from "./proxy/service.js";
 import { EventStore } from "./runs/events.js";
@@ -23,7 +31,15 @@ const log = (m: string): void => console.log(`[cwp] ${m}`);
 const notifier = new Notifier(db, settings, approvals, undefined, log);
 const proxy = new ProxyService({ settings, clashApiUrl: config.clashApiUrl, clashSecretPath: config.clashSecretPath, applyCommand: config.proxyApply });
 
-const orchestrator = new Orchestrator({
+const agentFiles = new AgentFiles(config.agentExec);
+const knowledge = new KnowledgeService(config.agentHome, bots, agentFiles);
+const vault = new VaultService(db, config.masterKey);
+const browser = new BrowserService({ bots, vault, agentHome: config.agentHome, agentExec: config.agentExec, chromium: config.chromium });
+const pages = new PageService(db, agentFiles, config.workspaceDir, config.publicBaseUrl);
+const connectors = new Connectors(settings, config.publicBaseUrl);
+const bridge = new BridgeService(db);
+
+const orchestrator: Orchestrator = new Orchestrator({
   db,
   engine: new ClaudeAgentEngine(config.agentExec, config.claudePath),
   bots,
@@ -33,6 +49,10 @@ const orchestrator = new Orchestrator({
   workspaceDir: config.workspaceDir,
   agentHome: config.agentHome,
   networkUp: () => proxy.isUp(),
+  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor()].filter(Boolean).join("\n\n"),
+  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge }, ctx),
+  mcpServersFor: (bot) => browser.mcpServers(bot),
+  policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),
 });
 
 approvals.onChange({
@@ -44,17 +64,23 @@ proxy.onChange((s) => {
   if (s.state === "connected") orchestrator.pump();
 });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy });
+const routines = new RoutineService({ db, bots, orchestrator, notify: (text) => notifier.notify(text) });
+
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge } });
 
 orchestrator.recover();
 notifier.reload();
 proxy.start();
+routines.start();
+browser.start();
 await app.listen({ host: config.host, port: config.port });
 log(`listening on ${config.host}:${config.port}`);
 
 const stop = async (): Promise<void> => {
   log("shutting down");
   proxy.stop();
+  routines.stop();
+  browser.stop();
   notifier.stop();
   await orchestrator.shutdown();
   await app.close();

@@ -12,6 +12,7 @@ export function BotDialog({ bot, onClose, onSaved }: { bot: Bot | null; onClose:
     model: bot?.model ?? "",
     maxTurns: bot?.maxTurns ?? 50,
     maxMinutes: bot?.maxMinutes ?? 120,
+    browser: bot?.browser ?? false,
   });
   const [error, setError] = useState("");
 
@@ -55,6 +56,10 @@ export function BotDialog({ bot, onClose, onSaved }: { bot: Bot | null; onClose:
             <input type="number" min={1} max={1440} value={form.maxMinutes} onChange={(e) => setForm({ ...form, maxMinutes: Number(e.target.value) })} />
           </label>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={form.browser} onChange={(e) => setForm({ ...form, browser: e.target.checked })} />
+          {t.browserEnabled}
+        </label>
         {error && <div className="err">{error}</div>}
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <button type="button" onClick={() => ref.current?.close()}>

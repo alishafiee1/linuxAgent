@@ -23,6 +23,7 @@ export interface Bot {
   allowedTools: string[] | null;
   maxTurns: number;
   maxMinutes: number;
+  browser: boolean;
   createdAt: string;
 }
 
@@ -33,6 +34,7 @@ export interface BotInput {
   allowedTools?: string[] | null;
   maxTurns?: number;
   maxMinutes?: number;
+  browser?: boolean;
 }
 
 export interface Conversation {
@@ -58,6 +60,8 @@ export interface Run {
   outputTokens: number;
   costEstimateUsd: number;
   limitResetAt: string | null;
+  parentRunId: string | null;
+  depth: number;
 }
 
 /** One stored, replayable event of a run. `payload` is the engine message or a panel notice. */
@@ -146,6 +150,7 @@ export interface PublicSettings {
   uiLanguage: UiLanguage;
   bale: { configured: boolean; chatId: string | null };
   telegram: { configured: boolean; chatId: string | null };
+  browserClicksAuto: boolean;
 }
 
 export interface SettingsInput {
@@ -154,6 +159,7 @@ export interface SettingsInput {
   uiLanguage?: UiLanguage;
   bale?: { token?: string; chatId?: string } | null;
   telegram?: { token?: string; chatId?: string } | null;
+  browserClicksAuto?: boolean;
 }
 
 export interface Me {
@@ -164,3 +170,130 @@ export interface ApiError {
   error: string;
   message: string;
 }
+
+// --- routines (cycle 002)
+export type RoutineTrigger = "cron" | "webhook";
+
+export interface Routine {
+  id: string;
+  botId: string;
+  botName: string;
+  name: string;
+  prompt: string;
+  trigger: RoutineTrigger;
+  /** Five-field cron, read in `timezone`. Null for webhook routines. */
+  cron: string | null;
+  timezone: string;
+  enabled: boolean;
+  notify: boolean;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  lastRunId: string | null;
+  lastRunState: RunState | null;
+  createdAt: string;
+}
+
+export interface RoutineInput {
+  botId: string;
+  name: string;
+  prompt: string;
+  trigger: RoutineTrigger;
+  cron?: string | null;
+  timezone?: string;
+  enabled?: boolean;
+  notify?: boolean;
+}
+
+// --- skills and memory (cycle 002)
+export interface Skill {
+  slug: string;
+  name: string;
+  description: string;
+  body: string;
+}
+
+export interface SkillInput {
+  name: string;
+  description: string;
+  body: string;
+}
+
+export interface MemoryFile {
+  /** "shared", or a bot id. */
+  scope: string;
+  label: string;
+  path: string;
+  content: string;
+}
+
+// --- vault (cycle 003). The value never leaves the server.
+export interface VaultItem {
+  id: string;
+  name: string;
+  username: string | null;
+  /** When set, the secret only goes into pages of this origin. */
+  site: string | null;
+  createdAt: string;
+}
+
+export interface VaultInput {
+  name: string;
+  username?: string | null;
+  secret?: string;
+  site?: string | null;
+}
+
+// --- browser (cycle 003)
+export interface BrowserStatus {
+  botId: string;
+  running: boolean;
+  url: string | null;
+  title: string | null;
+}
+
+export type BrowserInput =
+  | { type: "click"; x: number; y: number }
+  | { type: "scroll"; x: number; y: number; deltaY: number }
+  | { type: "text"; text: string }
+  | { type: "key"; key: string }
+  | { type: "navigate"; url: string };
+
+// --- pages (cycle 004)
+export interface SharedPage {
+  id: string;
+  botId: string | null;
+  name: string;
+  title: string;
+  /** Null once sharing is revoked. */
+  url: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
+// --- connectors (cycle 004)
+export interface ConnectorsStatus {
+  github: { configured: boolean };
+  google: { clientConfigured: boolean; connected: boolean; redirectUri: string };
+}
+
+export interface ConnectorsInput {
+  githubToken?: string | null;
+  googleClientId?: string | null;
+  googleClientSecret?: string | null;
+}
+
+// --- desktop bridge (cycle 006)
+export interface BridgeDevice {
+  id: string;
+  name: string;
+  folders: string[];
+  lastSeenAt: string | null;
+  online: boolean;
+  createdAt: string;
+}
+
+export type BridgeCommand =
+  | { kind: "list"; path: string }
+  | { kind: "read"; path: string }
+  | { kind: "write"; path: string; content: string }
+  | { kind: "run"; cwd: string; command: string };

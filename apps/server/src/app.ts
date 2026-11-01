@@ -17,6 +17,7 @@ import type { Notifier } from "./notify/notifier.js";
 import type { ProxyService } from "./proxy/service.js";
 import type { EventStore } from "./runs/events.js";
 import type { Orchestrator } from "./runs/orchestrator.js";
+import { registerExtRoutes, type ExtDeps } from "./routesExt.js";
 import type { SettingsStore } from "./settings.js";
 
 export const COOKIE = "cwp_session";
@@ -33,6 +34,7 @@ export interface AppDeps {
   settings: SettingsStore;
   notifier: Notifier | null;
   proxy: ProxyService | null;
+  ext?: ExtDeps;
 }
 
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
@@ -48,11 +50,13 @@ const botInput = z.object({
   allowedTools: z.array(z.string()).nullable().optional(),
   maxTurns: z.number().int().optional(),
   maxMinutes: z.number().int().optional(),
+  browser: z.boolean().optional(),
 });
 
 const settingsInput = z.object({
   defaultModel: z.string().max(100).optional(),
   maxConcurrentRuns: z.number().int().min(1).max(10).optional(),
+  browserClicksAuto: z.boolean().optional(),
   uiLanguage: z.enum(["fa", "en"]).optional(),
   bale: z.object({ token: z.string().optional(), chatId: z.string().optional() }).nullable().optional(),
   telegram: z.object({ token: z.string().optional(), chatId: z.string().optional() }).nullable().optional(),
@@ -332,6 +336,8 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
   });
   app.get("/api/proxy/subscription/nodes", async () => needProxy().subscriptionNodes());
   app.post("/api/proxy/select", async (req) => needProxy().selectSubscriptionNode(parse(z.object({ index: z.number().int().min(0) }), req.body).index));
+
+  if (d.ext) registerExtRoutes(app, d.ext);
 
   // --- web app
   if (d.config.webDist) {

@@ -19,6 +19,14 @@
 | انواع مشترک | TypeScript | `packages/shared/` | قرارداد API بین سرور و رابط وب |
 | دیتابیس | SQLite (WAL) | `/var/lib/cwp/cwp.db` | یک کاربر و یک سرور دارد و پشتیبان‌گیری‌اش ساده است. |
 | اعلان و تأیید | Bot API بله و تلگرام، با توکن‌هایی که در پنل وارد می‌شوند | `apps/server/src/notify/` | تأیید از راه دور وقتی پنل باز نیست |
+| روتین‌ها | زمان‌بند داخلی و وب‌هوک | `apps/server/src/routines/` | بدون وابستگی به cron سیستم، و هر اجرا مثل یک کار عادی دیده می‌شود |
+| مهارت و حافظه | فایل در `/home/agent/shared/` | `apps/server/src/knowledge.ts` | بات‌ها و پنل همان فایل‌ها را می‌خوانند و می‌نویسند |
+| مرورگر | Chromium و Playwright MCP با کاربر `agent` | `apps/server/src/browser/` | سبک است و فقط هنگام نیاز روشن می‌شود |
+| گاوصندوق | AES-256-GCM در دیتابیس | `apps/server/src/vault.ts` | مقدار رمز از هیچ API برنمی‌گردد |
+| صفحه‌ها | فایل HTML با لینک مخفی | `apps/server/src/pages.ts` | بدون اجرای اسکریپت و جدا از پنل |
+| اتصال‌ها | REST گوگل و GitHub | `apps/server/src/connectors.ts` | بدون وابستگی اضافه |
+| ابزارهای پنل | سرور MCP داخل همان پروسه | `apps/server/src/panelTools.ts` | سپردن کار، انتشار صفحه، اتصال‌ها و پل با یک مسیر و یک دروازهٔ تأیید |
+| پل کامپیوتر شخصی | اسکریپت Node بدون وابستگی | `deploy/desktop-bridge/`، `apps/server/src/bridge.ts` | فقط به بیرون وصل می‌شود و چیزی را باز نمی‌کند |
 | استقرار | اسکریپت آماده‌سازی hermes، systemd، Incus proxy device و nginx | `deploy/` | همان الگوی BaleBot |
 | پروکسی و kill switch | sing-box (TUN) داخل hermes، ACL شبکهٔ Incus روی میزبان | `deploy/proxy/` | فقط hermes تحت تأثیر است و با قطع پروکسی اینترنتش قطع می‌شود |
 
@@ -29,6 +37,10 @@
 - `Run`: یک بار اجرای موتور برای یک پیام، با وضعیت `queued | running | waiting_approval | waiting_limit | done | failed | interrupted | cancelled`
 - `Event`: هر رویداد استریم‌شدهٔ یک اجرا (متن، ابزار، نتیجه یا خطا)، تا پنل بعداً دوباره نشانش دهد.
 - `Approval`: درخواست تأیید یک ابزار، با تصمیم و کانالی که تصمیم از آن آمده است.
+- `Routine`: کار زمان‌دار یا وب‌هوک یک بات.
+- `VaultItem`: نام و نام کاربری و رمز رمزنگاری‌شده، با سایت مجاز اختیاری.
+- `Page`: گزارش منتشرشده با لینک مخفی.
+- `BridgeDevice`: کامپیوتر شخصی وصل به پنل، با هش توکن.
 
 ## تست
 

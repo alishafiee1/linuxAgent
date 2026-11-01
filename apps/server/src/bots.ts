@@ -27,6 +27,7 @@ interface BotRow {
   allowed_tools: string | null;
   max_turns: number;
   max_minutes: number;
+  browser: number;
   created_at: string;
 }
 
@@ -39,6 +40,7 @@ const toBot = (r: BotRow): Bot => ({
   allowedTools: r.allowed_tools ? (JSON.parse(r.allowed_tools) as string[]) : null,
   maxTurns: r.max_turns,
   maxMinutes: r.max_minutes,
+  browser: r.browser === 1,
   createdAt: r.created_at,
 });
 
@@ -119,8 +121,8 @@ export class BotService {
     const id = randomUUID();
     this.db
       .prepare(
-        `INSERT INTO bots (id, name, slug, persona, model, allowed_tools, max_turns, max_minutes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO bots (id, name, slug, persona, model, allowed_tools, max_turns, max_minutes, browser, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -131,6 +133,7 @@ export class BotService {
         input.allowedTools ? JSON.stringify(input.allowedTools) : null,
         input.maxTurns ?? 50,
         input.maxMinutes ?? 120,
+        input.browser ? 1 : 0,
         now(),
       );
     const bot = this.get(id);
@@ -163,7 +166,7 @@ export class BotService {
       throw new HttpError(409, "name_taken", "باتی با این نام وجود دارد.");
     this.db
       .prepare(
-        `UPDATE bots SET name = ?, persona = ?, model = ?, allowed_tools = ?, max_turns = ?, max_minutes = ? WHERE id = ?`,
+        `UPDATE bots SET name = ?, persona = ?, model = ?, allowed_tools = ?, max_turns = ?, max_minutes = ?, browser = ? WHERE id = ?`,
       )
       .run(
         name,
@@ -178,6 +181,7 @@ export class BotService {
             : null,
         input.maxTurns ?? bot.maxTurns,
         input.maxMinutes ?? bot.maxMinutes,
+        (input.browser ?? bot.browser) ? 1 : 0,
         id,
       );
     return this.get(id);

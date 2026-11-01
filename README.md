@@ -6,6 +6,8 @@ your approval in the panel, Bale or Telegram.
 
 - Plan, decisions and specs: `rodo/linux-agent/` (RODO method, see `AGENTS.md`)
 - Deploy: `deploy/README.md`
+- Plain-language overview (Persian): `rodo/linux-agent/project/client-overview.md`
+- How each part works, for beginners (Persian): `rodo/linux-agent/project/how-it-works.md`
 
 ## Develop
 

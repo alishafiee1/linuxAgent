@@ -2,12 +2,12 @@ import type { Bot, Run, RunEndReason, RunState } from "@linux-agent/shared";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { evaluateTool } from "../approval/policy.js";
+import { evaluateTool, type PolicyOptions } from "../approval/policy.js";
 import { MSG_NOT_APPROVED, type ApprovalService } from "../approval/service.js";
 import { HttpError, type BotService } from "../bots.js";
 import type { Db } from "../db.js";
 import { now } from "../db.js";
-import type { Engine, EngineEvent, ToolDecision } from "../engine/types.js";
+import type { Engine, EngineEvent, McpStdioServer, PanelTool, ToolDecision } from "../engine/types.js";
 import type { SettingsStore } from "../settings.js";
 import type { EventStore } from "./events.js";
 
@@ -31,6 +31,8 @@ interface RunRow {
   output_tokens: number;
   cost_estimate_usd: number;
   limit_reset_at: string | null;
+  parent_run_id: string | null;
+  depth: number;
 }
 
 export const toRun = (r: RunRow): Run => ({
@@ -47,9 +49,22 @@ export const toRun = (r: RunRow): Run => ({
   outputTokens: r.output_tokens,
   costEstimateUsd: r.cost_estimate_usd,
   limitResetAt: r.limit_reset_at,
+  parentRunId: r.parent_run_id,
+  depth: r.depth,
 });
 
+export const MAX_DELEGATION_DEPTH = 3;
+export const MAX_DELEGATIONS_PER_ROOT = 10;
+
+const TERMINAL: readonly RunState[] = ["done", "failed", "cancelled", "interrupted"];
+
 type AbortReason = "cancel" | "timeout" | "shutdown";
+
+export interface RunContext {
+  run: Run;
+  bot: Bot;
+  signal: AbortSignal;
+}
 
 export interface OrchestratorDeps {
   db: Db;
@@ -62,6 +77,12 @@ export interface OrchestratorDeps {
   agentHome: string;
   /** Spec R20: while false, queued runs wait. */
   networkUp?: () => boolean;
+  /** Extra system prompt lines for a bot: shared memory, skills, connectors. */
+  promptExtras?: (bot: Bot) => string;
+  /** Tools offered to one run. */
+  toolsFor?: (ctx: RunContext) => PanelTool[];
+  mcpServersFor?: (bot: Bot) => Record<string, McpStdioServer>;
+  policyOptions?: () => PolicyOptions;
   clock?: () => number;
 }
 
@@ -70,6 +91,9 @@ export class Orchestrator {
   private limitTimers = new Map<string, NodeJS.Timeout>();
   private running: Promise<void>[] = [];
   private clock: () => number;
+  /** Runs paused on a child run give up their slot, so a parent and child never deadlock at the limit. */
+  private blocked = new Set<string>();
+  private endListeners: ((run: Run) => void)[] = [];
 
   constructor(private d: OrchestratorDeps) {
     this.clock = d.clock ?? Date.now;
@@ -92,15 +116,15 @@ export class Orchestrator {
   }
 
   /** Spec R5: a message becomes a queued run. */
-  submit(conversationId: string, prompt: string): Run {
+  submit(conversationId: string, prompt: string, opts: { parentRunId?: string; depth?: number } = {}): Run {
     const conv = this.d.bots.conversation(conversationId);
     const text = prompt.trim();
     if (!text) throw new HttpError(400, "empty", "پیام خالی است.");
     const id = randomUUID();
     const t = now();
     this.d.db
-      .prepare("INSERT INTO runs (id, conversation_id, prompt, state, created_at) VALUES (?, ?, ?, 'queued', ?)")
-      .run(id, conv.id, text, t);
+      .prepare("INSERT INTO runs (id, conversation_id, prompt, state, created_at, parent_run_id, depth) VALUES (?, ?, ?, 'queued', ?, ?, ?)")
+      .run(id, conv.id, text, t, opts.parentRunId ?? null, opts.depth ?? 0);
     this.d.db.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(t, conv.id);
     this.d.events.append(id, "user", { text });
     this.d.events.append(id, "state", { state: "queued" });
@@ -147,7 +171,7 @@ export class Orchestrator {
   pump(): void {
     if (this.d.networkUp && !this.d.networkUp()) return;
     const max = this.d.settings.maxConcurrentRuns();
-    while (this.active.size < max) {
+    while (this.active.size - this.blocked.size < max) {
       const next = this.d.db.prepare("SELECT * FROM runs WHERE state = 'queued' ORDER BY created_at LIMIT 1").get() as RunRow | undefined;
       if (!next) return;
       const ctrl = new AbortController();
@@ -160,6 +184,75 @@ export class Orchestrator {
       });
       this.running.push(p);
     }
+  }
+
+  onRunEnd(fn: (run: Run) => void): () => void {
+    this.endListeners.push(fn);
+    return () => {
+      this.endListeners = this.endListeners.filter((l) => l !== fn);
+    };
+  }
+
+  /**
+   * Spec 005: a bot hands a task to another bot and waits for its answer. Limits stop runaway chains:
+   * depth, total per top-level run, and never back to a bot already in the chain.
+   */
+  async delegate(parent: Run, targetBotId: string, task: string, signal: AbortSignal): Promise<string> {
+    const depth = parent.depth + 1;
+    if (depth > MAX_DELEGATION_DEPTH) throw new HttpError(409, "too_deep", `بیش از ${MAX_DELEGATION_DEPTH} سطح سپردن کار مجاز نیست.`);
+    const chain = this.ancestors(parent);
+    const root = chain[chain.length - 1]!;
+    if (chain.some((r) => this.d.bots.conversation(r.conversationId).botId === targetBotId)) throw new HttpError(409, "cycle", "این بات همین حالا در زنجیرهٔ این کار است.");
+    const { n } = this.d.db
+      .prepare("WITH RECURSIVE tree(id) AS (SELECT id FROM runs WHERE id = ? UNION ALL SELECT r.id FROM runs r JOIN tree ON r.parent_run_id = tree.id) SELECT COUNT(*) - 1 AS n FROM tree")
+      .get(root.id) as { n: number };
+    if (n >= MAX_DELEGATIONS_PER_ROOT) throw new HttpError(409, "too_many", `سقف ${MAX_DELEGATIONS_PER_ROOT} کار سپرده‌شده پر شده است.`);
+    const from = this.d.bots.get(this.d.bots.conversation(parent.conversationId).botId);
+    const target = this.d.bots.get(targetBotId);
+    const conv = this.d.bots.createConversation(targetBotId, `از ${from.name}: ${task.slice(0, 50)}`);
+    this.blocked.add(parent.id);
+    const child = this.submit(conv.id, task, { parentRunId: parent.id, depth });
+    this.d.events.append(parent.id, "notice", { delegated: { runId: child.id, conversationId: conv.id, botName: target.name } });
+    const onAbort = (): void => void this.cancel(child.id);
+    signal.addEventListener("abort", onAbort, { once: true });
+    try {
+      const done = await new Promise<Run>((resolve) => {
+        const off = this.onRunEnd((r) => {
+          if (r.id !== child.id) return;
+          off();
+          resolve(r);
+        });
+        const cur = this.get(child.id);
+        if (TERMINAL.includes(cur.state)) {
+          off();
+          resolve(cur);
+        }
+      });
+      if (done.state !== "done") return `بات ${target.name} کار را تمام نکرد (وضعیت: ${done.state}).`;
+      return this.resultText(done.id) ?? "(بدون متن)";
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+      this.blocked.delete(parent.id);
+    }
+  }
+
+  private ancestors(run: Run): Run[] {
+    const out = [run];
+    for (let cur = run; cur.parentRunId; ) {
+      cur = this.get(cur.parentRunId);
+      out.push(cur);
+    }
+    return out;
+  }
+
+  /** The final answer of a finished run, for notifications and delegation. */
+  resultText(runId: string): string | null {
+    const rows = this.d.db.prepare("SELECT payload FROM events WHERE run_id = ? AND type IN ('result','assistant_text') ORDER BY seq DESC LIMIT 5").all(runId) as { payload: string }[];
+    for (const r of rows) {
+      const p = JSON.parse(r.payload) as { text?: string | null };
+      if (p.text) return p.text;
+    }
+    return null;
   }
 
   /** Waits for all in-flight runs (tests and shutdown). */
@@ -187,6 +280,7 @@ export class Orchestrator {
       `Shared workspace (shared with other bots): ${this.d.workspaceDir}`,
       `Your own notes file: ${notesPath}. Keep it short and update it when you learn something worth remembering.`,
       notes ? `Current contents of your notes file:\n${notes}` : "",
+      this.d.promptExtras?.(bot) ?? "",
       "Sensitive actions (deleting, pushing, sending, installing, anything outside your home folder) pause for the user's approval. If an action is not approved, do not try to get around it.",
     ]
       .filter(Boolean)
@@ -206,7 +300,7 @@ export class Orchestrator {
     const gate = async (toolName: string, input: Record<string, unknown>, signal: AbortSignal): Promise<ToolDecision> => {
       if (bot.allowedTools && !bot.allowedTools.includes(toolName) && !toolName.startsWith("mcp__"))
         return { allow: false, message: MSG_TOOL_NOT_ALLOWED };
-      const policy = evaluateTool(toolName, input, this.d.agentHome);
+      const policy = evaluateTool(toolName, input, this.d.agentHome, this.d.policyOptions?.());
       if (policy.auto) return { allow: true };
       const { approval, decision } = this.d.approvals.request(run.id, toolName, input, policy.reason, signal);
       this.d.events.append(run.id, "approval", { approvalId: approval.id, toolName, input, reason: policy.reason, state: "pending" });
@@ -232,6 +326,8 @@ export class Orchestrator {
         allowedTools: bot.allowedTools,
         maxTurns: bot.maxTurns,
         canUseTool: gate,
+        panelTools: this.d.toolsFor?.({ run, bot, signal: ctrl.signal }),
+        mcpServers: this.d.mcpServersFor?.(bot),
         abortController: ctrl,
       });
       for await (const ev of stream) {
@@ -329,5 +425,6 @@ export class Orchestrator {
     const run = this.get(runId);
     this.d.events.append(runId, "state", { state, reason, message: message ?? null });
     this.d.events.activity({ kind: "run", runId, conversationId: run.conversationId, state });
+    for (const l of this.endListeners) l(run);
   }
 }

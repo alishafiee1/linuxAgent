@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconGlobe, IconInbox, IconShield, IconSliders, IconX } from "./icons";
 import { useT } from "./i18n";
+import { ConnectorsSection, DevicesSection } from "./pagesExt";
 
 export function ApprovalsPage({ activityTick }: { activityTick: number }) {
   const { t } = useT();
@@ -378,7 +379,7 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
     setMsg("");
     setError("");
     try {
-      const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage });
+      const next = await api.put<PublicSettings>("/api/settings", { defaultModel: s.defaultModel, maxConcurrentRuns: s.maxConcurrentRuns, uiLanguage: s.uiLanguage, browserClicksAuto: s.browserClicksAuto });
       setS(next);
       setLang(next.uiLanguage);
       setMsg(t.saved);
@@ -411,6 +412,10 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
             </select>
           </label>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={s.browserClicksAuto} onChange={(e) => setS({ ...s, browserClicksAuto: e.target.checked })} />
+          {t.browserClicksAuto}
+        </label>
         <div className="row">
           <button className="primary" onClick={() => void saveGeneral()}>
             {t.save}
@@ -449,6 +454,8 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
       <ProxySection proxy={proxy} onChanged={onSaved} />
+      <ConnectorsSection />
+      <DevicesSection />
     </div>
   );
 }

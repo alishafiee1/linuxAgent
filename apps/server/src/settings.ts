@@ -45,6 +45,11 @@ export class SettingsStore {
     return token && chatId ? { token, chatId } : null;
   }
 
+  /** Off by default: every click or typed text in a bot's browser asks first, because a click can submit a form. */
+  browserClicksAuto(): boolean {
+    return this.get("browserClicksAuto") === "1";
+  }
+
   publicView(): PublicSettings {
     const lang = this.get("uiLanguage");
     return {
@@ -53,6 +58,7 @@ export class SettingsStore {
       uiLanguage: (lang === "en" ? "en" : "fa") satisfies UiLanguage,
       bale: { configured: this.channel("bale") !== null, chatId: this.get("bale.chatId") },
       telegram: { configured: this.channel("telegram") !== null, chatId: this.get("telegram.chatId") },
+      browserClicksAuto: this.browserClicksAuto(),
     };
   }
 
@@ -60,6 +66,7 @@ export class SettingsStore {
     if (input.defaultModel !== undefined) this.set("defaultModel", input.defaultModel.trim() || null);
     if (input.maxConcurrentRuns !== undefined) this.set("maxConcurrentRuns", String(input.maxConcurrentRuns));
     if (input.uiLanguage !== undefined) this.set("uiLanguage", input.uiLanguage);
+    if (input.browserClicksAuto !== undefined) this.set("browserClicksAuto", input.browserClicksAuto ? "1" : "0");
     for (const name of ["bale", "telegram"] as const) {
       const ch = input[name];
       if (ch === undefined) continue;

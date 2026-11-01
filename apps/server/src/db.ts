@@ -90,6 +90,53 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  `
+  ALTER TABLE runs ADD COLUMN parent_run_id TEXT REFERENCES runs(id) ON DELETE SET NULL;
+  ALTER TABLE runs ADD COLUMN depth INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE bots ADD COLUMN browser INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE routines (
+    id TEXT PRIMARY KEY,
+    bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    cron TEXT,
+    timezone TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    notify INTEGER NOT NULL DEFAULT 1,
+    webhook_hash TEXT UNIQUE,
+    next_run_at TEXT,
+    last_run_at TEXT,
+    last_run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX routines_due ON routines(enabled, next_run_at);
+  CREATE TABLE vault_items (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    username TEXT,
+    secret_enc TEXT NOT NULL,
+    site TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE pages (
+    id TEXT PRIMARY KEY,
+    bot_id TEXT REFERENCES bots(id) ON DELETE SET NULL,
+    name TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    token TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE bridge_devices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    token_hash TEXT NOT NULL UNIQUE,
+    folders TEXT NOT NULL,
+    last_seen_at TEXT,
+    created_at TEXT NOT NULL
+  );
+  `,
 ];
 
 export function openDb(path: string): Db {

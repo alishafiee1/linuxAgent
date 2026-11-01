@@ -3,9 +3,10 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { api, ApiError } from "./api";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
-import { IconActivity, IconChat, IconFolder, IconGauge, IconGlobe, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
+import { BrowserPage, KnowledgePage, RoutinesPage, SharedPagesPage } from "./pagesExt";
 
 export interface Status {
   runs: { running: number; queued: number; waitingApproval: number; waitingLimit: number };
@@ -15,11 +16,15 @@ export interface Status {
   lowDiskMessage: string | null;
 }
 
-type View = "chat" | "approvals" | "usage" | "files" | "settings";
+type View = "chat" | "approvals" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
 
 const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   chat: IconChat,
   approvals: IconShield,
+  routines: IconClock,
+  knowledge: IconBot,
+  browser: IconGlobe,
+  pages: IconInbox,
   usage: IconGauge,
   files: IconFolder,
   settings: IconSliders,
@@ -200,7 +205,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           {t.appName}
         </span>
         <nav className="nav">
-          {(["chat", "approvals", "usage", "files", "settings"] as View[]).map((v) => {
+          {(["chat", "approvals", "routines", "knowledge", "browser", "pages", "usage", "files", "settings"] as View[]).map((v) => {
             const NavIcon = NAV_ICONS[v];
             return (
               <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
@@ -290,6 +295,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}
         {view === "approvals" && <ApprovalsPage activityTick={activityTick} />}
+        {view === "routines" && <RoutinesPage bots={bots} activityTick={activityTick} />}
+        {view === "knowledge" && <KnowledgePage />}
+        {view === "browser" && <BrowserPage bots={bots} />}
+        {view === "pages" && <SharedPagesPage />}
         {view === "usage" && <UsagePage />}
         {view === "files" && <FilesPage />}
         {view === "settings" && <SettingsPage proxy={status?.proxy ?? null} onSaved={loadStatus} />}
