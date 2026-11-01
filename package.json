@@ -11,6 +11,7 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "eslint .",
     "test": "pnpm -r run test",
+    "e2e": "pnpm --filter @linux-agent/server e2e",
     "dev:server": "pnpm --filter @linux-agent/server dev",
     "dev:web": "pnpm --filter @linux-agent/web dev",
     "cwp": "pnpm --filter @linux-agent/server cli"

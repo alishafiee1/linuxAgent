@@ -1,4 +1,4 @@
-import type { Bot, Run, RunEndReason, RunState } from "@linux-agent/shared";
+import type { Bot, Question, RequestKind, RequestPayload, Run, RunEndReason, RunState, UserRequest } from "@linux-agent/shared";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { HttpError, type BotService } from "../bots.js";
 import type { Db } from "../db.js";
 import { now } from "../db.js";
 import type { Engine, EngineEvent, McpStdioServer, PanelTool, ToolDecision } from "../engine/types.js";
+import type { RequestService } from "../requests.js";
 import type { SettingsStore } from "../settings.js";
 import type { EventStore } from "./events.js";
 
@@ -53,6 +54,7 @@ export const toRun = (r: RunRow): Run => ({
   depth: r.depth,
 });
 
+export const MAX_MESSAGE_DEPTH = 6;
 export const MAX_DELEGATION_DEPTH = 3;
 export const MAX_DELEGATIONS_PER_ROOT = 10;
 
@@ -83,6 +85,7 @@ export interface OrchestratorDeps {
   toolsFor?: (ctx: RunContext) => PanelTool[];
   mcpServersFor?: (bot: Bot) => Record<string, McpStdioServer>;
   policyOptions?: () => PolicyOptions;
+  requests?: RequestService;
   clock?: () => number;
 }
 
@@ -162,6 +165,7 @@ export class Orchestrator {
     const stale = this.d.db.prepare("SELECT id, conversation_id FROM runs WHERE state IN ('running','waiting_approval')").all() as { id: string; conversation_id: string }[];
     for (const r of stale) this.finish(r.id, "interrupted", "restart");
     this.d.approvals.expireAllPending();
+    this.d.requests?.expireAllPending();
     const limited = this.d.db.prepare("SELECT id, limit_reset_at FROM runs WHERE state = 'waiting_limit'").all() as { id: string; limit_reset_at: string | null }[];
     for (const r of limited) this.armLimitTimer(r.id, r.limit_reset_at ? Date.parse(r.limit_reset_at) : this.clock());
     this.pump();
@@ -238,6 +242,40 @@ export class Orchestrator {
     }
   }
 
+  /**
+   * Spec 009: a message to another bot does not wait. Each pair of bots keeps one conversation, so the
+   * other side remembers it, and a reply is simply another message. Depth and the per-task total stop loops.
+   */
+  sendToBot(parent: Run, targetBotId: string, message: string): Run {
+    const depth = parent.depth + 1;
+    if (depth > MAX_MESSAGE_DEPTH) throw new HttpError(409, "too_deep", "این رشته پیام خیلی بلند شد؛ نتیجه را به کاربر بگو.");
+    const root = this.ancestors(parent).at(-1)!;
+    const { n } = this.d.db
+      .prepare("WITH RECURSIVE tree(id) AS (SELECT id FROM runs WHERE id = ? UNION ALL SELECT r.id FROM runs r JOIN tree ON r.parent_run_id = tree.id) SELECT COUNT(*) - 1 AS n FROM tree")
+      .get(root.id) as { n: number };
+    if (n >= MAX_DELEGATIONS_PER_ROOT) throw new HttpError(409, "too_many", `سقف ${MAX_DELEGATIONS_PER_ROOT} پیام بین بات‌ها در این کار پر شده است.`);
+    const from = this.d.bots.get(this.d.bots.conversation(parent.conversationId).botId);
+    const target = this.d.bots.get(targetBotId);
+    if (from.id === target.id) throw new HttpError(409, "self", "بات نمی‌تواند به خودش پیام بدهد.");
+    const title = `پیام از ${from.name}`;
+    const conv = this.d.bots.conversations(target.id).find((c) => c.title === title) ?? this.d.bots.createConversation(target.id, title);
+    const child = this.submit(conv.id, `Message from the bot "${from.name}". To reply, use send_message_to_bot. If it needs no reply, finish without sending one.\n\n${message}`, { parentRunId: parent.id, depth });
+    this.d.events.append(parent.id, "notice", { messaged: { runId: child.id, conversationId: conv.id, botName: target.name } });
+    return child;
+  }
+
+  /** Pauses a run on something only the person can give. The answer comes from any channel. */
+  async askUser(run: Run, kind: RequestKind, payload: RequestPayload, signal: AbortSignal): Promise<UserRequest> {
+    if (!this.d.requests) throw new HttpError(501, "disabled", "این امکان فعال نیست.");
+    const { request, done } = this.d.requests.ask(run.id, kind, payload, signal);
+    this.d.events.append(run.id, "request", { requestId: request.id, kind, payload, state: "pending" });
+    this.setState(run.id, "waiting_approval");
+    const final = await done;
+    this.d.events.append(run.id, "request", { requestId: request.id, kind, state: final.state, answer: final.answer, channel: final.channel });
+    if (!signal.aborted) this.setState(run.id, "running");
+    return final;
+  }
+
   private ancestors(run: Run): Run[] {
     const out = [run];
     for (let cur = run; cur.parentRunId; ) {
@@ -300,6 +338,14 @@ export class Orchestrator {
     let finished = false;
 
     const gate = async (toolName: string, input: Record<string, unknown>, signal: AbortSignal): Promise<ToolDecision> => {
+      // Claude's own question tool becomes the same multiple-choice card as ask_user.
+      if (toolName === "AskUserQuestion" && this.d.requests) {
+        const questions = (input.questions ?? []) as Question[];
+        const final = await this.askUser(run, "questions", { questions }, signal);
+        if (final.state !== "answered") return { allow: false, message: "کاربر به این پرسش جواب نداد." };
+        const answers = Object.fromEntries(Object.entries(final.answer?.answers ?? {}).map(([q, a]) => [q, a.join(", ")]));
+        return { allow: true, updatedInput: { ...input, answers } };
+      }
       if (bot.allowedTools && !bot.allowedTools.includes(toolName) && !toolName.startsWith("mcp__"))
         return { allow: false, message: MSG_TOOL_NOT_ALLOWED };
       const policy = evaluateTool(toolName, input, this.d.agentHome, this.d.policyOptions?.());

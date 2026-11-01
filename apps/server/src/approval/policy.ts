@@ -44,6 +44,11 @@ export const BASH_APPROVAL_PATTERNS: { re: RegExp; label: string }[] = [
 // Panel tools. Anything not listed here asks first, including tools added later.
 const PANEL_AUTO = new Set([
   "delegate_to_bot",
+  "send_message_to_bot",
+  "ask_user",
+  "request_connection",
+  "request_browser_takeover",
+  "list_connections",
   "open_browser",
   "update_page",
   "gmail_search",
@@ -122,6 +127,11 @@ export function evaluateTool(toolName: string, input: Record<string, unknown>, a
 
   if (toolName.startsWith("mcp__cwp__")) {
     const name = toolName.slice("mcp__cwp__".length);
+    if (name === "call_api") {
+      const method = String(input.method ?? "GET").toUpperCase();
+      if (method === "GET" || method === "HEAD") return { auto: true };
+      return { auto: false, reason: `تغییر در ${String(input.connection ?? "سرویس بیرونی")}: ${method} ${String(input.path ?? "")}` };
+    }
     return PANEL_AUTO.has(name) ? { auto: true } : { auto: false, reason: PANEL_REASONS[name] ?? `ابزار ${name}` };
   }
 

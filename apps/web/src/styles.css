@@ -1627,8 +1627,110 @@ label.check input {
 }
 
 /* nine pages: on mid-size screens the top bar stays on one line without the icons */
-@media (min-width: 900px) and (max-width: 1560px) {
+@media (min-width: 900px) and (max-width: 1700px) {
   .nav button svg {
     display: none;
   }
+}
+
+/* cards for what a bot needs from the person */
+.request-card {
+  width: 100%;
+}
+
+.q-form {
+  display: grid;
+  gap: 12px;
+}
+
+.q-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.q-field legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.q-options {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+label.q-option {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+label.q-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+label.q-option input {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  flex: none;
+}
+
+label.q-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.connect-steps {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+.secret-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.platform-group {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.platform-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+}
+
+.platform.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.connected-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
 }

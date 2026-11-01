@@ -1,9 +1,10 @@
-<!-- RODO_ERROR: ITEM_LINE_INVALID: line 49: write - [ ] title (+1 more: rodo/linux-agent/.rodo/last-sync.json) -->
 ---
 schemaVersion: 2
 id: cmvw714t5000fpc01mspdflhq
 title: "هستهٔ MVP: پنل، بات، چت، اجرای پس‌زمینه، تأیید"
-status: in_progress
+status: blocked
+blockerType: external
+statusReason: "waiting for the user, a second proxy link to test switching, and a long job with the laptop really off"
 priority: high
 scope:
   allowed: [apps/server/, apps/web/, packages/shared/, deploy/, "root workspace config (package.json, pnpm-workspace.yaml, tsconfig)", rodo/linux-agent/ docs of this cycle and current docs]
@@ -16,10 +17,9 @@ updatedAt: 1793436830020
 
 ## Progress notes
 
-- Updated: 2026-10-31
-- Done: پروکسی و kill switch روی hermes. کد سرور و رابط وب، ۴۰ تست، اسکریپت‌های استقرار. نصب روی hermes انجام شد: `cwp.service` بالاست، ورود Claude برای agent درست است، کاربر پنل ساخته شد، گواهی و nginx برای agent.roditeam.ir فعال است و سایت از بیرون جواب می‌دهد.
-- Remaining: اتصال دوبارهٔ پروژه به برد: توکن این دستگاه اجازهٔ برد قبلی را ندارد و کد اتصال تازه از وب‌سایت برد لازم است؛ کارت‌ها شناسهٔ برد را هم از دست داده‌اند، پس پیش از همگام‌سازی باید جلوی ساخته شدن کارت تکراری گرفته شود. توکن تلگرام مسعود اشتباه ذخیره شده و باید دوباره وارد شود. آزمون واقعی بله و تلگرام، اعمال پروکسی از پنل و سناریوی «لپ‌تاپ خاموش». push به GitHub منتظر دسترسی Masoud-rmz به مخزن است.
-- Verified: آزمون Playwright روی نمونهٔ جدا: ورود، بات‌ها، چت زنده، تأیید و رد، ریلود، توقف و ادامه، فایل‌ها، مصرف، تنظیمات، دو زبان، گوشی و تبلت. تست‌های سرور ✓ (40). طراحی جدید رابط با اصلاح‌ها ادغام و نصب شد. بازبینی دوم روی نمونهٔ جدا با دو اصلاح تازه: ۱۳۶۶ و ۳۷۵ پیکسل، دو زبان، روشن و تیره، تأیید و رد، خطای توقف و ادامه ✓؛ typecheck و lint ✓. چهار تست قدیمی تأیید و رد و یک تست گفت‌وگوی تازه در اسکریپت کامل رد شدند و با تست دقیق‌تر ✓ شدند.
+- Updated: 2026-11-01
+- Done: تأیید از راه دور با دکمه در تلگرام و بله آزموده شد. کار ۱۸ دقیقه‌ای بدون مرورگر باز تمام شد. پروکسی غیرمجاز رد می‌شود.
+- Remaining: جابه‌جایی واقعی به سرور دوم، و یک کار طولانی با لپ‌تاپ خاموش. هر دو به شما نیاز دارند.
 
 ## Refs
 
@@ -46,5 +46,3 @@ updatedAt: 1793436830020
 - [x] بخش پروکسی در تنظیمات: لینک یا سابسکریپشن، اعمال کانفیگ و نمایش وضعیت اتصال (R18–R20) <!-- rodo:ckl_cmvw7154j001hpc0176424szm -->
 - [x] systemd، nginx و گواهی برای agent.roditeam.ir، پشتیبان روزانهٔ دیتابیس، snapshot کانتینر و سند استقرار (R16–R17) <!-- rodo:ckl_cmvw7155j001jpc01f037b1d0 -->
 - [ ] آزمون دستی سناریوی «لپ‌تاپ خاموش» از simple.md روی سرور <!-- rodo:ckl_cmvw7156k001lpc01x7mrevyb -->
-- Updated: 2026-10-31
-- Remaining: Real tests on the live panel: messages reach Bale and Telegram, a refused proxy leaves the connection up, an 18-minute run finished with no browser open. Remaining: pressing an approval button in Bale or Telegram, switching to a second real proxy, turning the laptop off for real.

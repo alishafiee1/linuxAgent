@@ -1,4 +1,4 @@
-import type { Bot, BridgeDevice, BrowserStatus, ConnectorsStatus, MemoryFile, Routine, SharedPage, Skill, VaultItem } from "@linux-agent/shared";
+import type { Bot, BridgeDevice, BrowserStatus, MemoryFile, Routine, SharedPage, Skill, VaultItem } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { api } from "./api";
 import { IconClock, IconFolder, IconGlobe, IconPencil, IconPlay, IconPlus, IconShield, IconTerminal, IconTrash } from "./icons";
@@ -342,13 +342,19 @@ export function KnowledgePage() {
 }
 
 // --- browser and vault
-function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
+export function LiveBrowser({ botId, vault: given }: { botId: string; vault: VaultItem[] | null }) {
   const { t } = useT();
   const [status, setStatus] = useState<BrowserStatus | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [item, setItem] = useState("");
+  // Inside a request card nobody passes the list, so it loads its own.
+  const [loaded, setLoaded] = useState<VaultItem[]>([]);
+  useEffect(() => {
+    if (!given) void api.get<VaultItem[]>("/api/vault").then(setLoaded, () => {});
+  }, [given]);
+  const vault = given ?? loaded;
   const [msg, run] = useMsg();
   const img = useRef<HTMLImageElement>(null);
   // Size of the frame on screen in page pixels. Kept here because the image element reads 0 while a new frame loads.
@@ -420,6 +426,9 @@ function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
     if (["Enter", "Tab", "Backspace", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
       e.preventDefault();
       send({ type: "key", key: e.key });
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      send({ type: "text", text: e.key });
     }
   };
 
@@ -666,90 +675,6 @@ export function SharedPagesPage() {
 }
 
 // --- settings sections
-export function ConnectorsSection() {
-  const { t } = useT();
-  const [s, setS] = useState<ConnectorsStatus | null>(null);
-  const [form, setForm] = useState({ githubToken: "", googleClientId: "", googleClientSecret: "" });
-  const [msg, run] = useMsg();
-  const load = useCallback(() => api.get<ConnectorsStatus>("/api/connectors").then(setS, () => {}), []);
-  useEffect(() => void load(), [load]);
-  if (!s) return null;
-  const save = (body: Record<string, string>) =>
-    void run(async () => {
-      setS(await api.put<ConnectorsStatus>("/api/connectors", body));
-      setForm({ githubToken: "", googleClientId: "", googleClientSecret: "" });
-    });
-  return (
-    <div className="card section">
-      <h3>
-        <IconGlobe size={16} />
-        {t.connectors}
-      </h3>
-      <p className="muted">{t.connectorsHelp}</p>
-      <div className="row">
-        <strong>GitHub</strong>
-        <span className="pill">
-          <span className={`dot ${s.github.configured ? "good" : ""}`} />
-          {s.github.configured ? t.configured : t.notConfigured}
-        </span>
-      </div>
-      <label>
-        {t.githubToken}
-        <input type="password" dir="ltr" autoComplete="off" placeholder={s.github.configured ? t.tokenKeep : ""} value={form.githubToken} onChange={(e) => setForm({ ...form, githubToken: e.target.value })} />
-      </label>
-      <div className="row">
-        <button className="primary" disabled={!form.githubToken.trim()} onClick={() => save({ githubToken: form.githubToken })}>
-          {t.save}
-        </button>
-      </div>
-      <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
-      <div className="row">
-        <strong>Google (Gmail, Calendar)</strong>
-        <span className="pill">
-          <span className={`dot ${s.google.connected ? "good" : ""}`} />
-          {s.google.connected ? t.connected : t.notConfigured}
-        </span>
-      </div>
-      <p className="muted">{t.googleHelp}</p>
-      <code dir="ltr" className="break">
-        {s.google.redirectUri}
-      </code>
-      <div className="grid2">
-        <label>
-          Client ID
-          <input dir="ltr" autoComplete="off" placeholder={s.google.clientConfigured ? t.tokenKeep : ""} value={form.googleClientId} onChange={(e) => setForm({ ...form, googleClientId: e.target.value })} />
-        </label>
-        <label>
-          Client Secret
-          <input type="password" dir="ltr" autoComplete="off" placeholder={s.google.clientConfigured ? t.tokenKeep : ""} value={form.googleClientSecret} onChange={(e) => setForm({ ...form, googleClientSecret: e.target.value })} />
-        </label>
-      </div>
-      <div className="row">
-        <button className="primary" disabled={!form.googleClientId.trim() || !form.googleClientSecret.trim()} onClick={() => save({ googleClientId: form.googleClientId, googleClientSecret: form.googleClientSecret })}>
-          {t.save}
-        </button>
-        <button
-          disabled={!s.google.clientConfigured}
-          onClick={() =>
-            void run(async () => {
-              const { url } = await api.post<{ url: string }>("/api/connectors/google/start");
-              window.open(url, "_blank", "noopener");
-            }, "")
-          }
-        >
-          {t.googleConnect}
-        </button>
-        {s.google.connected && (
-          <button className="danger" onClick={() => void run(() => api.post<ConnectorsStatus>("/api/connectors/google/disconnect").then(setS), "")}>
-            {t.disconnect}
-          </button>
-        )}
-      </div>
-      <Note msg={msg} />
-    </div>
-  );
-}
-
 export function DevicesSection() {
   const { t } = useT();
   const [list, setList] = useState<BridgeDevice[]>([]);

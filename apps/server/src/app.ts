@@ -57,6 +57,7 @@ const settingsInput = z.object({
   defaultModel: z.string().max(100).optional(),
   maxConcurrentRuns: z.number().int().min(1).max(10).optional(),
   browserClicksAuto: z.boolean().optional(),
+  learningEnabled: z.boolean().optional(),
   uiLanguage: z.enum(["fa", "en"]).optional(),
   bale: z.object({ token: z.string().optional(), chatId: z.string().optional() }).nullable().optional(),
   telegram: z.object({ token: z.string().optional(), chatId: z.string().optional() }).nullable().optional(),
@@ -154,7 +155,7 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     }
     return {
       runs: d.orchestrator.counts(),
-      pendingApprovals: d.approvals.list("pending").length,
+      pendingApprovals: d.approvals.list("pending").length + (d.ext?.requests.pending().length ?? 0),
       proxy: d.proxy?.current() ?? null,
       lowDisk,
       lowDiskMessage: lowDisk ? MSG_LOW_DISK : null,

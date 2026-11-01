@@ -3,7 +3,7 @@
 
 import type { ZodRawShape } from "zod";
 
-export type ToolDecision = { allow: true } | { allow: false; message: string };
+export type ToolDecision = { allow: true; updatedInput?: Record<string, unknown> } | { allow: false; message: string };
 
 export type ToolGate = (toolName: string, input: Record<string, unknown>, signal: AbortSignal) => Promise<ToolDecision>;
 

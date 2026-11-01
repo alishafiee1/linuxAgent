@@ -30,6 +30,7 @@ export interface BrowserDeps {
   agentExec: string[];
   chromium: string;
   files: AgentFiles;
+  extraArgs?: string[];
   /** A bot driving its browser through MCP does not touch `lastUse`, so a working bot's browser stays open. */
   isBusy?: (botId: string) => boolean;
   fetchFn?: typeof fetch;
@@ -131,6 +132,7 @@ export class BrowserService {
       "--disable-dev-shm-usage",
       "--no-first-run",
       "--no-default-browser-check",
+      ...(this.d.extraArgs ?? []),
       "about:blank",
     ];
     const [bin, ...pre] = this.d.agentExec.length ? [...this.d.agentExec, "env", this.d.chromium] : [this.d.chromium];

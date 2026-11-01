@@ -53,6 +53,10 @@ Updating adds four database tables and these folders under `/home/agent`: `share
 - **Desktop bridge:** copy `deploy/desktop-bridge/bridge.mjs` to the computer and run the command the panel shows under Settings. It needs Node 18 or newer.
 - **Google:** create a Web OAuth client and enter the redirect address shown in Settings.
 
+## Tests before an update
+
+On hermes, from a copy of the repo: `pnpm test`, then `pnpm build && pnpm e2e` (real Chromium, scripted engine, no subscription use).
+
 ## Rollback
 
 - Stop the panel: `systemctl disable --now cwp.service cwp-backup.timer` (in hermes).

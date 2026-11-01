@@ -132,7 +132,7 @@ export class KnowledgeService {
     const shared = this.files.read(this.sharedMemory)?.slice(0, PROMPT_MEMORY_LIMIT) ?? "";
     const skills = this.listSkills();
     const parts = [
-      `Shared memory file for all bots: ${this.sharedMemory}. Add facts every bot should know; keep it short.`,
+      `Shared memory file for all bots: ${this.sharedMemory}. When the user states a preference, corrects you, or shows a way of working, add one short line there so every bot can use it. Never store a password or key. Do not store what is only true today.`,
       shared ? `Current shared memory:\n${shared}` : "",
       `Shared skills live in ${this.skillsDir}/<name>/SKILL.md, with name and description at the top. When the user teaches you a reusable way of working, save it there so every bot can use it.`,
       skills.length ? `Available skills. Read the file before doing work it covers:\n${skills.map((s) => `- ${s.name}: ${s.description} (${join(this.skillsDir, s.slug, "SKILL.md")})`).join("\n")}` : "",

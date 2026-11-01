@@ -137,6 +137,28 @@ const MIGRATIONS: string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  `
+  CREATE TABLE user_requests (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    state TEXT NOT NULL,
+    answer TEXT,
+    draft TEXT,
+    channel TEXT,
+    created_at TEXT NOT NULL,
+    answered_at TEXT
+  );
+  CREATE INDEX user_requests_state ON user_requests(state);
+  CREATE TABLE request_messages (
+    request_id TEXT NOT NULL REFERENCES user_requests(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    question_index INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function openDb(path: string): Db {

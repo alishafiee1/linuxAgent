@@ -9,7 +9,10 @@ import { BrowserService } from "./browser/service.js";
 import { Connectors } from "./connectors.js";
 import { ClaudeAgentEngine } from "./engine/claude.js";
 import { AgentFiles, KnowledgeService } from "./knowledge.js";
+import { LearningService } from "./learning.js";
 import { PageService } from "./pages.js";
+import { PlatformService } from "./platforms.js";
+import { RequestService } from "./requests.js";
 import { buildPanelTools } from "./panelTools.js";
 import { RoutineService } from "./routines/service.js";
 import { VaultService } from "./vault.js";
@@ -45,6 +48,8 @@ const browser = new BrowserService({
 });
 const pages = new PageService(db, agentFiles, config.workspaceDir, config.publicBaseUrl);
 const connectors = new Connectors(settings, config.publicBaseUrl);
+const platforms = new PlatformService(settings, config.publicBaseUrl);
+const requests = new RequestService(db);
 const bridge = new BridgeService(db);
 
 const orchestrator: Orchestrator = new Orchestrator({
@@ -57,8 +62,9 @@ const orchestrator: Orchestrator = new Orchestrator({
   workspaceDir: config.workspaceDir,
   agentHome: config.agentHome,
   networkUp: () => proxy.isUp(),
-  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor()].filter(Boolean).join("\n\n"),
-  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge }, ctx),
+  requests,
+  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor()].filter(Boolean).join("\n\n"),
+  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms }, ctx),
   mcpServersFor: (bot) => browser.mcpServers(bot),
   policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),
 });
@@ -72,14 +78,17 @@ proxy.onChange((s) => {
   if (s.state === "connected") orchestrator.pump();
 });
 
+notifier.attachRequests(requests, config.publicBaseUrl);
+const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
 const routines = new RoutineService({ db, bots, orchestrator, notify: (text) => notifier.notify(text) });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge } });
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests } });
 
 orchestrator.recover();
 notifier.reload();
 proxy.start();
 routines.start();
+learning.start();
 browser.start();
 await app.listen({ host: config.host, port: config.port });
 log(`listening on ${config.host}:${config.port}`);
@@ -88,6 +97,7 @@ const stop = async (): Promise<void> => {
   log("shutting down");
   proxy.stop();
   routines.stop();
+  learning.stop();
   browser.stop();
   notifier.stop();
   await orchestrator.shutdown();

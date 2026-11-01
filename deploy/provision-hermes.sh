@@ -45,6 +45,15 @@ SUDO
 chmod 0440 /etc/sudoers.d/cwp
 visudo -cf /etc/sudoers.d/cwp
 
+echo "== 4b. shared skills (only missing ones; a skill edited in the panel is kept)"
+for dir in "$REPO"/deploy/skills/*/; do
+  name="$(basename "$dir")"
+  if [ ! -e "/home/agent/shared/skills/$name" ]; then
+    install -d -o agent -g agent -m 0755 "/home/agent/shared/skills/$name"
+    install -o agent -g agent -m 0644 "$dir/SKILL.md" "/home/agent/shared/skills/$name/SKILL.md"
+  fi
+done
+
 echo "== 5. env file (created once)"
 if [ ! -f /etc/cwp/env ]; then
   umask 077

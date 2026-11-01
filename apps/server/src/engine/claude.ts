@@ -134,7 +134,7 @@ export class ClaudeAgentEngine implements Engine {
         mcpServers,
         canUseTool: async (toolName, input, { signal }) => {
           const d = await o.canUseTool(toolName, input, signal);
-          return d.allow ? { behavior: "allow", updatedInput: input } : { behavior: "deny", message: d.message };
+          return d.allow ? { behavior: "allow", updatedInput: d.updatedInput ?? input } : { behavior: "deny", message: d.message };
         },
         ...(spawner ? { spawnClaudeCodeProcess: spawner } : {}),
         ...(this.claudePath ? { pathToClaudeCodeExecutable: this.claudePath } : {}),
