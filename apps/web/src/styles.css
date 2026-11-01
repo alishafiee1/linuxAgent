@@ -1682,7 +1682,11 @@ label.q-option.on {
 
 label.q-option input {
   width: auto;
-  margin-top: 4px;
+  height: auto;
+  min-height: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  flex: none;
 }
 
 label.q-option span {

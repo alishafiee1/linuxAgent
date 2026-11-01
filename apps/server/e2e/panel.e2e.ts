@@ -150,6 +150,11 @@ async function signIn(viewport = { width: 1400, height: 900 }): Promise<Page> {
   return p;
 }
 
+/** With CWP_E2E_SHOTS set to a folder, keeps a picture of each new card for a person to look at. */
+const shot = async (name: string, target: Page = page): Promise<void> => {
+  if (process.env.CWP_E2E_SHOTS) await target.screenshot({ path: join(process.env.CWP_E2E_SHOTS, `${name}.png`) });
+};
+
 const send = async (text: string): Promise<void> => {
   await page.locator(".composer textarea").fill(text);
   await page.locator(".composer button.primary").click();
@@ -178,6 +183,7 @@ describe.skipIf(!available)("panel end to end", () => {
     expect(await card.innerText()).not.toContain("{");
     expect(await card.locator('input[type="radio"]').count()).toBe(2);
     expect(await card.locator('input[type="checkbox"]').count()).toBe(2);
+    await shot("question-card");
 
     await card.locator("button.primary").click();
     await page.locator(".request-card .err").waitFor();
@@ -230,8 +236,12 @@ describe.skipIf(!available)("panel end to end", () => {
 
   it("connects from the page, adds a custom service, and shows how to get a key", async () => {
     await openPage("اتصال‌ها");
+    await page.locator(".platform").first().waitFor();
+    await shot("connections");
     await page.locator(".platform", { hasText: "Slack" }).locator("button").click();
     const dlg = page.locator("dialog[open]");
+    await dlg.locator(".connect-steps").waitFor();
+    await shot("connect-dialog");
     expect(await dlg.locator(".connect-steps li").count()).toBeGreaterThan(0);
     expect(await dlg.locator("a.dl").getAttribute("href")).toContain("api.slack.com");
     await dlg.locator('input[type="password"]').fill("xoxb-e2e");
@@ -257,6 +267,7 @@ describe.skipIf(!available)("panel end to end", () => {
     const card = page.locator(".request-card");
     await card.locator(".browser-frame").waitFor({ timeout: 30_000 });
     expect(await card.innerText()).toContain("لطفاً وارد شوید");
+    await shot("takeover-card");
     await card.locator("button.primary").click();
     await card.waitFor({ state: "detached" });
     await expect.poll(() => page.locator(".bubble.assistant").last().innerText()).toContain("done");
@@ -276,6 +287,18 @@ describe.skipIf(!available)("panel end to end", () => {
     await approval.waitFor();
     await approval.locator("button.danger").click();
     await expect.poll(() => page.locator(".bubble.assistant").last().innerText()).toContain("refused");
+  });
+
+  it("fits the question card on a phone", async () => {
+    const p = await signIn({ width: 390, height: 800 });
+    await p.locator(".composer textarea").fill("ASK");
+    await p.locator(".composer button.primary").click();
+    const card = p.locator(".request-card");
+    await card.waitFor();
+    await shot("question-card-phone", p);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    await card.locator(".ghost").click();
+    await p.context().close();
   });
 
   it("keeps every page inside the screen on desktop and phone", async () => {
