@@ -87,6 +87,45 @@ export interface OrchestratorDeps {
   policyOptions?: () => PolicyOptions;
   requests?: RequestService;
   clock?: () => number;
+  /** Length of a bot's time-limit minute. Only tests change it. */
+  minuteMs?: number;
+}
+
+/** A run's time budget. It stops while the run waits for the person or for another bot. */
+class WorkClock {
+  private timer: NodeJS.Timeout | null = null;
+  private startedAt = 0;
+  private waits = 0;
+
+  constructor(
+    private remaining: number,
+    private onExpire: () => void,
+  ) {
+    this.run();
+  }
+
+  private run(): void {
+    this.startedAt = Date.now();
+    this.timer = setTimeout(this.onExpire, this.remaining);
+    this.timer.unref?.();
+  }
+
+  pause(): void {
+    if (this.waits++ > 0 || !this.timer) return;
+    clearTimeout(this.timer);
+    this.timer = null;
+    this.remaining = Math.max(0, this.remaining - (Date.now() - this.startedAt));
+  }
+
+  resume(): void {
+    if (--this.waits === 0) this.run();
+  }
+
+  stop(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.waits = 1;
+  }
 }
 
 export class Orchestrator {
@@ -97,6 +136,7 @@ export class Orchestrator {
   /** Runs paused on a child run give up their slot, so a parent and child never deadlock at the limit. */
   private blocked = new Map<string, number>();
   private endListeners: ((run: Run) => void)[] = [];
+  private clocks = new Map<string, WorkClock>();
 
   constructor(private d: OrchestratorDeps) {
     this.clock = d.clock ?? Date.now;
@@ -217,6 +257,7 @@ export class Orchestrator {
     this.blocked.set(parent.id, (this.blocked.get(parent.id) ?? 0) + 1);
     const child = this.submit(conv.id, task, { parentRunId: parent.id, depth });
     this.d.events.append(parent.id, "notice", { delegated: { runId: child.id, conversationId: conv.id, botName: target.name } });
+    this.clocks.get(parent.id)?.pause();
     const onAbort = (): void => void this.cancel(child.id);
     signal.addEventListener("abort", onAbort, { once: true });
     try {
@@ -236,6 +277,7 @@ export class Orchestrator {
       return this.resultText(done.id) ?? "(بدون متن)";
     } finally {
       signal.removeEventListener("abort", onAbort);
+      this.clocks.get(parent.id)?.resume();
       const left = (this.blocked.get(parent.id) ?? 1) - 1;
       if (left > 0) this.blocked.set(parent.id, left);
       else this.blocked.delete(parent.id);
@@ -270,7 +312,9 @@ export class Orchestrator {
     const { request, done } = this.d.requests.ask(run.id, kind, payload, signal);
     this.d.events.append(run.id, "request", { requestId: request.id, kind, payload, state: "pending" });
     this.setState(run.id, "waiting_approval");
+    this.clocks.get(run.id)?.pause();
     const final = await done;
+    this.clocks.get(run.id)?.resume();
     this.d.events.append(run.id, "request", { requestId: request.id, kind, state: final.state, answer: final.answer, channel: final.channel });
     if (!signal.aborted) this.setState(run.id, "running");
     return final;
@@ -331,8 +375,8 @@ export class Orchestrator {
     const conv = this.d.bots.conversation(run.conversationId);
     const bot = this.d.bots.get(conv.botId);
     this.d.bots.ensureDir(bot);
-    const timer = setTimeout(() => ctrl.abort("timeout" satisfies AbortReason), bot.maxMinutes * 60_000);
-    timer.unref?.();
+    const clock = new WorkClock(bot.maxMinutes * (this.d.minuteMs ?? 60_000), () => ctrl.abort("timeout" satisfies AbortReason));
+    this.clocks.set(run.id, clock);
     let rateLimitedUntil: number | null = null;
     let sawRejection = false;
     let finished = false;
@@ -353,7 +397,9 @@ export class Orchestrator {
       const { approval, decision } = this.d.approvals.request(run.id, toolName, input, policy.reason, signal);
       this.d.events.append(run.id, "approval", { approvalId: approval.id, toolName, input, reason: policy.reason, state: "pending" });
       this.setState(run.id, "waiting_approval");
+      clock.pause();
       const allowed = await decision;
+      clock.resume();
       const final = this.d.approvals.get(approval.id);
       this.d.events.append(run.id, "approval", { approvalId: approval.id, toolName, state: final?.state, channel: final?.decidedByChannel });
       if (!ctrl.signal.aborted) this.setState(run.id, "running");
@@ -396,7 +442,8 @@ export class Orchestrator {
     } catch (err) {
       if (!finished) this.endAfterAbortOrError(run.id, ctrl, sawRejection, rateLimitedUntil, err);
     } finally {
-      clearTimeout(timer);
+      clock.stop();
+      this.clocks.delete(run.id);
     }
   }
 

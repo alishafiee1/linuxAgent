@@ -97,7 +97,8 @@ function resolveInRoot(rootDir: string, rel: string): string {
 }
 
 export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false, bodyLimit: 1_000_000 });
+  // Open live streams must not hold up a restart.
+  const app = Fastify({ logger: false, bodyLimit: 1_000_000, forceCloseConnections: true });
   await app.register(cookie);
   // The server link is slow; hijacked SSE replies skip this hook, so live output is not buffered.
   await app.register(compress);
