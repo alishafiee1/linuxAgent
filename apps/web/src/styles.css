@@ -1833,3 +1833,94 @@ label.q-option span {
   gap: 8px;
   white-space: normal;
 }
+
+/* what the bot is doing right now */
+.activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(560px, 72vw);
+  min-width: 0;
+}
+
+.activity-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.activity-meta {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.activity-dots {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+
+.activity-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: activity-dot 1.2s infinite ease-in-out;
+}
+
+.activity-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.activity-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes activity-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* subscription limits */
+.plan-limit {
+  display: grid;
+  gap: 6px;
+}
+
+.plan-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.plan-limit.allowed_warning .plan-bar span {
+  background: var(--warn-strong);
+}
+
+.plan-limit.rejected .plan-bar span {
+  background: var(--bad);
+}
+
+.plan-meta {
+  font-size: 12px;
+  margin: 0;
+}
+
+.top-usage {
+  display: grid;
+  gap: 4px;
+}

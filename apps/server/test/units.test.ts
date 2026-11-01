@@ -89,7 +89,7 @@ describe("engine mapping", () => {
       { kind: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } },
     ]);
     expect(mapSdkMessage({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: 1_800_000_000 } } as never)).toEqual([
-      { kind: "rate_limit", status: "rejected", resetsAt: 1_800_000_000_000 },
+      { kind: "rate_limit", status: "rejected", resetsAt: 1_800_000_000_000, limitType: undefined, utilization: null },
     ]);
   });
 });

@@ -120,6 +120,59 @@ export function UsagePage() {
           {t.limitBanner} {report.limit.resetAt ? new Date(report.limit.resetAt).toLocaleString(locale) : "?"}
         </div>
       )}
+      <div className="card section">
+        <h3>
+          <IconGauge size={16} />
+          {t.planLimits}
+        </h3>
+        {report.plan.length === 0 && <p className="muted">{t.planNone}</p>}
+        {report.plan.map((l) => {
+          const percent = l.utilization === null ? null : Math.min(100, Math.round(l.utilization * 100));
+          return (
+            <div key={l.type} className={`plan-limit ${l.status}`}>
+              <div className="row">
+                <strong>{t.planTypes[l.type] ?? l.type}</strong>
+                <span className="spacer" />
+                <span>{percent === null ? t.planNoFigure : `٪${percent.toLocaleString(locale)}`}</span>
+              </div>
+              {percent !== null && (
+                <div className="upload-bar plan-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
+                  <span style={{ width: `${percent}%` }} />
+                </div>
+              )}
+              <div className="muted plan-meta">
+                {t.planStatus[l.status]}
+                {l.resetsAt && ` · ${t.planResets}: ${new Date(l.resetsAt).toLocaleString(locale)}`}
+                {` · ${t.planReported}: ${new Date(l.reportedAt).toLocaleString(locale)}`}
+              </div>
+            </div>
+          );
+        })}
+        <p className="muted plan-meta">{t.planHelp}</p>
+        <p className="muted plan-meta">
+          {t.panelTokens}: {t.fiveHours} {fmt(report.windows.fiveHours)} · {t.sevenDays} {fmt(report.windows.sevenDays)}
+        </p>
+      </div>
+      {report.top.length > 0 && (
+        <div className="card section">
+          <h3>{t.topUsage}</h3>
+          <p className="muted plan-meta">{t.topUsageHelp}</p>
+          {report.top.map((u) => (
+            <div key={u.conversationId} className="top-usage">
+              <div className="row nowrap">
+                <span className="upload-name" dir="auto" title={u.title}>
+                  {u.title}
+                </span>
+                <span className="muted">{u.botName}</span>
+                <span>{`٪${Math.round(u.share * 100).toLocaleString(locale)}`}</span>
+              </div>
+              <div className="upload-bar">
+                <span style={{ width: `${Math.round(u.share * 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {report.rows.length === 0 ? (
         <div className="empty">
           <IconGauge size={30} />

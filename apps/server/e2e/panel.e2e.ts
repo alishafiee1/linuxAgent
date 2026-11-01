@@ -53,6 +53,17 @@ class ScriptedEngine implements Engine {
       out = await tool("send_file").run({ path: "chart.png" });
     }
     if (o.prompt.includes("/uploads/")) out = `I got ${o.prompt.match(/\/uploads\/\S+/)?.[0] ?? ""}`;
+    if (o.prompt.includes("SLOWSTEP")) {
+      const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      await pause(1200);
+      yield { kind: "tool_use", id: "t1", name: "Read", input: { file_path: "/home/agent/workspace/گزارش.md" } };
+      await pause(1200);
+      yield { kind: "tool_result", toolUseId: "t1", content: "x", isError: false };
+      await pause(1200);
+      yield { kind: "tool_use", id: "t2", name: "Bash", input: { command: "ls", description: "فهرست فایل‌ها" } };
+      await pause(1200);
+      yield { kind: "tool_result", toolUseId: "t2", content: "x", isError: false };
+    }
     if (o.prompt.includes("SEND")) out = await tool("send_message_to_bot").run({ bot: "دوم", message: "سلام" });
     if (o.prompt.includes("WRITE")) {
       const input = { connection: "github", method: "POST", path: "/repos/a/b/issues" };
@@ -68,6 +79,7 @@ let page: Page;
 let base: string;
 let requests: RequestService;
 let workspace: string;
+let settingsStore: SettingsStore;
 let bots: BotService;
 let close: () => Promise<void>;
 let login: { password: string; secret: string };
@@ -80,6 +92,7 @@ beforeAll(async () => {
   const key = Buffer.alloc(32, 9);
   const db = openDb(":memory:");
   const settings = new SettingsStore(db, key);
+  settingsStore = settings;
   const files = new AgentFiles();
   bots = new BotService(db, join(dir, "bots"));
   const approvals = new ApprovalService(db);
@@ -361,6 +374,31 @@ describe.skipIf(!available)("panel end to end", () => {
     expect(await row.locator("button").count()).toBe(0);
     const status = await page.evaluate(async () => (await fetch("/api/skills/panel-guide", { method: "DELETE", headers: { "x-cwp": "1" } })).status);
     expect(status).toBe(403);
+  });
+
+  it("shows plan limits and top usage on the usage page", async () => {
+    await page.evaluate(() => undefined);
+    settingsStore.savePlanLimit({ status: "allowed_warning", resetsAt: Date.now() + 86_400_000, limitType: "seven_day", utilization: 0.85 });
+    await send("سلام");
+    await page.locator(".activity").waitFor({ state: "detached" });
+    await openPage("مصرف");
+    const limit = page.locator(".plan-limit", { hasText: "سقف هفتگی" });
+    await limit.waitFor();
+    expect(await limit.locator('[role="progressbar"]').getAttribute("aria-valuenow")).toBe("85");
+    await page.locator(".top-usage").first().waitFor();
+    await shot("usage");
+  });
+
+  it("says what the bot is doing while it works, with time and steps", async () => {
+    await send("SLOWSTEP");
+    const label = page.locator(".activity").last();
+    await label.locator(".activity-text", { hasText: "در حال فکر کردن" }).waitFor();
+    await label.locator(".activity-text", { hasText: "خواندن فایل گزارش.md" }).waitFor();
+    await shot("activity");
+    await label.locator(".activity-text", { hasText: "اجرای دستور: فهرست فایل‌ها" }).waitFor();
+    expect(await label.innerText()).toContain("2 قدم");
+    expect(await label.locator('.activity-meta[dir="ltr"]').innerText()).toMatch(/^\d+:\d\d$/);
+    await page.locator(".activity").waitFor({ state: "detached" });
   });
 
   it("lets one bot message another without waiting", async () => {

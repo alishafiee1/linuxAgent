@@ -1,5 +1,6 @@
 import type { Bot, ChatFile, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { currentActivity, formatElapsed } from "./activity";
 import { api } from "./api";
 import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
@@ -282,6 +283,38 @@ function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: st
   );
 }
 
+/** Shows what the bot is doing, how long it has worked, and that it is alive. */
+function RunningLabel({ events, startedAt }: { events: RunEvent[]; startedAt: string | null }) {
+  const { t } = useT();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+  const { text, steps } = currentActivity(events, t);
+  const seconds = startedAt ? (now - Date.parse(startedAt)) / 1000 : 0;
+  return (
+    <span className="activity" role="status" aria-live="polite">
+      <span className="activity-text" dir="auto" title={text}>
+        {text}
+      </span>
+      <span className="activity-dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className="activity-meta" dir="ltr">
+        {formatElapsed(seconds)}
+      </span>
+      {steps > 0 && (
+        <span className="activity-meta">
+          · {steps} {t.activity.steps}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged: () => void }) {
   const { t } = useT();
   const events = useRunEvents(run);
@@ -391,7 +424,7 @@ function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged
             return <StateIcon size={13} />;
           })()}
           <span className="chip-label">
-            {t.states[state] ?? state}
+            {state === "running" ? <RunningLabel events={events} startedAt={run.startedAt} /> : (t.states[state] ?? state)}
             {state === "waiting_limit" && lastState?.limitResetAt && ` · ${t.limitBanner} ${new Date(lastState.limitResetAt).toLocaleTimeString()}`}
             {lastState?.message ? ` · ${lastState.message}` : ""}
           </span>

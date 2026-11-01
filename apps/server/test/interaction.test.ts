@@ -516,3 +516,21 @@ describe("core skills", () => {
     expect(names).toContain("panel-guide");
   });
 });
+
+describe("plan limits", () => {
+  it("keeps the engine's report and forgets it after the reset", async () => {
+    const resetsAt = Date.now() + 3_600_000;
+    const t = setup(new FakeEngine(() => [{ kind: "rate_limit", status: "allowed_warning", resetsAt, limitType: "seven_day", utilization: 0.85 }, ok()]));
+    t.orchestrator.submit(t.conv.id, "x");
+    await t.orchestrator.idle();
+    const [limit] = t.settings.planLimits();
+    expect(limit).toMatchObject({ type: "seven_day", status: "allowed_warning", utilization: 0.85 });
+    expect(t.settings.planLimits(resetsAt + 1)).toHaveLength(0);
+  });
+
+  it("ignores a report that names no limit", () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    t.settings.savePlanLimit({ status: "allowed", resetsAt: null });
+    expect(t.settings.planLimits()).toHaveLength(0);
+  });
+});
