@@ -94,6 +94,8 @@ export interface Approval {
   botName: string;
   toolName: string;
   input: unknown;
+  /** The same input in plain words. */
+  summary: string;
   reason: string;
   state: ApprovalState;
   decidedByChannel: ApprovalChannel | null;

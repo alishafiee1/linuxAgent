@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { evaluateTool } from "../src/approval/policy.js";
+import { describeTool } from "../src/approval/describe.js";
 import { AgentFiles } from "../src/knowledge.js";
 import { LearningService, LEARNER_NAME } from "../src/learning.js";
 import { Notifier, type FetchLike } from "../src/notify/notifier.js";
@@ -341,5 +342,52 @@ describe("time limit", () => {
     const run = t.orchestrator.submit(t.conv.id, "x");
     await t.orchestrator.idle();
     expect(t.orchestrator.get(run.id).reason).toBe("max_minutes");
+  });
+});
+
+describe("approval text", () => {
+  it("says what will happen in plain words, with no JSON", () => {
+    const call = describeTool("mcp__cwp__call_api", { connection: "elevenlabs", method: "POST", path: "/text-to-speech/x", body: JSON.stringify({ text: "سلام", model_id: "m" }) });
+    expect(call).toContain("سرویس: elevenlabs");
+    expect(call).toContain("text: سلام");
+    expect(call).not.toContain("{");
+    expect(describeTool("Bash", { command: "sudo true", description: "Test" })).toContain("sudo true");
+    expect(describeTool("Write", { file_path: "/etc/x" })).toContain("/etc/x");
+    const mail = describeTool("mcp__cwp__gmail_send", { to: "a@b.c", subject: "س", body: "متن" });
+    expect(mail).toContain("متن");
+    expect(describeTool("Unknown", { a: 1 })).toBe("a: 1");
+    expect(describeTool("Bash", { command: "x".repeat(5000) }).length).toBeLessThan(800);
+  });
+
+  it("reaches Telegram without raw input", async () => {
+    const t = setup(new FakeEngine(() => [{ gate: "mcp__cwp__call_api", input: { connection: "github", method: "POST", path: "/x", body: '{"title":"t"}' } }, ok()]));
+    t.settings.apply({ telegram: { token: "1:x", chatId: "7" } });
+    const sent: string[] = [];
+    new Notifier(t.db, t.settings, t.approvals, (async (url: string, init?: { body?: string }) => {
+      if (String(url).endsWith("sendMessage")) sent.push(String((JSON.parse(init?.body ?? "{}") as { text: string }).text));
+      return { json: async () => ({ ok: true, result: { message_id: 1 } }) };
+    }) as FetchLike);
+    t.orchestrator.submit(t.conv.id, "x");
+    await tick(10);
+    expect(sent[0]).toContain("سرویس: github");
+    expect(sent[0]).not.toContain('"connection"');
+    t.approvals.decide(t.approvals.list("pending")[0]!.id, false, "panel");
+    await t.orchestrator.idle();
+  });
+});
+
+describe("binary answers", () => {
+  it("saves audio as a file and returns its path, not garbage", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const saved: { name: string; size: number }[] = [];
+    const p = new PlatformService(t.settings, "https://panel.test", (async () => new Response(new Uint8Array([73, 68, 51, 0]), { headers: { "content-type": "audio/mpeg" } })) as unknown as typeof fetch, (name, data) => {
+      saved.push({ name, size: data.length });
+      return `/w/${name}`;
+    });
+    p.connect("elevenlabs", { token: "k" });
+    const r = await p.call("elevenlabs", "POST", "/text-to-speech/x", "{}");
+    expect(saved[0]!.name).toMatch(/\.mp3$/);
+    expect(saved[0]!.size).toBe(4);
+    expect(r.text).toContain("saved to /w/");
   });
 });

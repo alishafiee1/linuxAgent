@@ -395,7 +395,7 @@ export class Orchestrator {
       const policy = evaluateTool(toolName, input, this.d.agentHome, this.d.policyOptions?.());
       if (policy.auto) return { allow: true };
       const { approval, decision } = this.d.approvals.request(run.id, toolName, input, policy.reason, signal);
-      this.d.events.append(run.id, "approval", { approvalId: approval.id, toolName, input, reason: policy.reason, state: "pending" });
+      this.d.events.append(run.id, "approval", { approvalId: approval.id, toolName, input, summary: approval.summary, reason: policy.reason, state: "pending" });
       this.setState(run.id, "waiting_approval");
       clock.pause();
       const allowed = await decision;

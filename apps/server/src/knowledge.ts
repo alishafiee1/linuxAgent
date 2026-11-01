@@ -19,7 +19,7 @@ export class AgentFiles {
     }
   }
 
-  write(path: string, content: string): void {
+  write(path: string, content: string | Buffer): void {
     if (this.agentExec.length === 0) {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, content);

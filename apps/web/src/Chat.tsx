@@ -4,6 +4,7 @@ import { api } from "./api";
 import { IconActivity, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
+import { ApprovalDetails } from "./pages";
 import { RequestCard } from "./requests";
 
 const ACTIVE = new Set(["queued", "running", "waiting_approval", "waiting_limit"]);
@@ -200,7 +201,7 @@ function ToolCard({ name, input, result, isError }: { name: string; input: unkno
   );
 }
 
-function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: string; input: unknown; reason: string } }) {
+function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: string; input: unknown; summary?: string; reason: string } }) {
   const { t } = useT();
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -220,7 +221,7 @@ function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: st
         </span>
         <strong>{payload.reason}</strong>
       </div>
-      <pre>{JSON.stringify(payload.input, null, 2)}</pre>
+      <ApprovalDetails summary={payload.summary} toolName={payload.toolName} input={payload.input} />
       {!done && (
         <div className="row approval-actions">
           <button className="primary" onClick={() => void decide(true)}>

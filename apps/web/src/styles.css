@@ -1734,3 +1734,16 @@ label.q-option span {
   gap: 4px;
   font-size: 13px;
 }
+
+.approval-summary {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-block: 8px;
+}
+
+.approval-raw summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}

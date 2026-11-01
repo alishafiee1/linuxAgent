@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { ApprovalService } from "./approval/service.js";
 import { AuthService } from "./auth/service.js";
 import { buildApp } from "./app.js";
@@ -48,7 +49,11 @@ const browser = new BrowserService({
 });
 const pages = new PageService(db, agentFiles, config.workspaceDir, config.publicBaseUrl);
 const connectors = new Connectors(settings, config.publicBaseUrl);
-const platforms = new PlatformService(settings, config.publicBaseUrl);
+const platforms = new PlatformService(settings, config.publicBaseUrl, fetch, (name, data) => {
+  const path = join(config.workspaceDir, "downloads", name);
+  agentFiles.write(path, data);
+  return path;
+});
 const requests = new RequestService(db);
 const bridge = new BridgeService(db);
 
