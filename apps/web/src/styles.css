@@ -1625,3 +1625,10 @@ label.check input {
   overflow-wrap: anywhere;
   text-align: left;
 }
+
+/* nine pages: on mid-size screens the top bar stays on one line without the icons */
+@media (min-width: 900px) and (max-width: 1560px) {
+  .nav button svg {
+    display: none;
+  }
+}

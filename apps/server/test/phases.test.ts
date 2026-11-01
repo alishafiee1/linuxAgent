@@ -1,5 +1,5 @@
 import { authenticator } from "otplib";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { EngineEvent } from "../src/engine/types.js";
@@ -25,7 +25,7 @@ function services(t: ReturnType<typeof setup>) {
   const files = new AgentFiles();
   const knowledge = new KnowledgeService(t.dir, t.bots, files);
   const vault = new VaultService(t.db, KEY);
-  const browser = new BrowserService({ bots: t.bots, vault, agentHome: t.dir, agentExec: [], chromium: "chromium" });
+  const browser = new BrowserService({ bots: t.bots, vault, files, agentHome: t.dir, agentExec: [], chromium: "chromium" });
   const pages = new PageService(t.db, files, join(t.dir, "workspace"), "https://panel.test");
   const connectors = new Connectors(t.settings, "https://panel.test");
   const bridge = new BridgeService(t.db);
@@ -222,6 +222,58 @@ describe("browser", () => {
     const tools = buildPanelTools({ bots: t.bots, orchestrator: () => t.orchestrator, ...s }, { run: t.orchestrator.submit(t.conv.id, "x"), bot: on, signal: new AbortController().signal });
     expect(tools.map((x) => x.name)).toContain("open_browser");
     expect(tools.map((x) => x.name)).not.toContain("gmail_send");
+  });
+});
+
+describe("review fixes", () => {
+  it("accepts a webhook with any content type or no body", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const { app, routines } = await api(t);
+    const { webhookToken } = routines.create({ botId: t.bot.id, name: "w", prompt: "p", trigger: "webhook" });
+    for (const [ct, payload] of [["application/x-www-form-urlencoded", "a=1"], ["text/plain", "hi"], ["application/json", "{bad"], ["application/json", ""]] as const) {
+      const r = await app.inject({ method: "POST", url: `/hook/${webhookToken}`, headers: { "content-type": ct }, payload });
+      expect(r.statusCode).toBe(202);
+      await t.orchestrator.idle();
+    }
+  });
+
+  it("gives a new bot a browser profile of its own and removes the old one", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const { app, h } = await api(t);
+    const one = t.bots.create({ name: "فارسی", browser: true });
+    const profile = join(t.dir, "browser", one.id);
+    mkdirSync(profile, { recursive: true });
+    expect((await app.inject({ method: "DELETE", url: `/api/bots/${one.id}`, headers: h })).statusCode).toBe(200);
+    expect(existsSync(profile)).toBe(false);
+  });
+
+  it("removes the file of a deleted page", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const { pages } = await api(t);
+    const page = pages.publish(t.bot.id, "gone", "x", "<p>x</p>");
+    const file = join(t.dir, "workspace", "pages", "gone.html");
+    expect(existsSync(file)).toBe(true);
+    pages.delete(page.id);
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it("frees the slot only after the last of several parallel delegations", async () => {
+    const release = deferred();
+    const t = setup(new FakeEngine((n) => (n === 0 ? [{ wait: release.promise }, ok()] : [answered("x")])), { maxConcurrent: 1 });
+    const b = t.bots.create({ name: "B" });
+    const c = t.bots.create({ name: "C" });
+    const parent = t.orchestrator.get(t.orchestrator.submit(t.conv.id, "start").id);
+    const signal = new AbortController().signal;
+    await expect(Promise.all([t.orchestrator.delegate(parent, b.id, "1", signal), t.orchestrator.delegate(parent, c.id, "2", signal)])).resolves.toEqual(["x", "x"]);
+    release.resolve();
+    await t.orchestrator.idle();
+  });
+
+  it("offers the bridge script only to a signed-in person", async () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const { app, h } = await api(t);
+    expect((await app.inject({ method: "GET", url: "/api/bridge/script" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: "/api/bridge/script", headers: h })).body).toContain("insideFolders");
   });
 });
 

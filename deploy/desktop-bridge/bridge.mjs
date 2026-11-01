@@ -4,6 +4,7 @@
 //   node bridge.mjs --url https://agent.roditeam.ir --folder "D:\Work" --folder "D:\Downloads"
 //
 // Put the device token from the panel in the CWP_BRIDGE_TOKEN environment variable.
+// In PowerShell: $env:CWP_BRIDGE_TOKEN="..."
 // It only connects out; nothing on this computer is exposed. Only the folders named here are
 // reachable, whatever the panel asks. Stop it with Ctrl+C and the bots lose access at once.
 /* global process, console, fetch, AbortSignal, setTimeout */

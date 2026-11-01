@@ -210,7 +210,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             return (
               <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
                 <NavIcon size={15} />
-                <span>{t[v]}</span>
+                <span>{v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]}</span>
                 {v === "approvals" && status && status.pendingApprovals > 0 && ` (${status.pendingApprovals})`}
               </button>
             );

@@ -167,7 +167,9 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
   app.get<{ Params: { id: string } }>("/api/bots/:id", async (req) => d.bots.get(req.params.id));
   app.patch<{ Params: { id: string } }>("/api/bots/:id", async (req) => d.bots.update(req.params.id, parse(botInput.partial(), req.body) as Partial<BotInput>));
   app.delete<{ Params: { id: string } }>("/api/bots/:id", async (req) => {
-    d.bots.delete(req.params.id);
+    const bot = d.bots.get(req.params.id);
+    d.bots.delete(bot.id);
+    await d.ext?.browser.forget(bot);
     return { ok: true };
   });
   app.get<{ Params: { id: string } }>("/api/bots/:id/conversations", async (req) => d.bots.conversations(req.params.id));

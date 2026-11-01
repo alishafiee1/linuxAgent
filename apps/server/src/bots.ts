@@ -187,16 +187,21 @@ export class BotService {
     return this.get(id);
   }
 
+  hasActiveRun(id: string): boolean {
+    return (
+      this.db
+        .prepare(
+          `SELECT 1 FROM runs r JOIN conversations c ON c.id = r.conversation_id
+           WHERE c.bot_id = ? AND r.state IN ('queued','running','waiting_approval','waiting_limit') LIMIT 1`,
+        )
+        .get(id) !== undefined
+    );
+  }
+
   /** Spec R4 + edge case: refuse while a run of this bot is active. Removes only the bot's own folder. */
   delete(id: string): void {
     const bot = this.get(id);
-    const active = this.db
-      .prepare(
-        `SELECT 1 FROM runs r JOIN conversations c ON c.id = r.conversation_id
-         WHERE c.bot_id = ? AND r.state IN ('queued','running','waiting_approval','waiting_limit') LIMIT 1`,
-      )
-      .get(id);
-    if (active) throw new HttpError(409, "bot_busy", MSG_BOT_BUSY);
+    if (this.hasActiveRun(id)) throw new HttpError(409, "bot_busy", MSG_BOT_BUSY);
     this.db.prepare("DELETE FROM bots WHERE id = ?").run(id);
     if (this.agentExec.length > 0) {
       this.asAgent('rm -rf -- "$1"', this.botDir(bot));

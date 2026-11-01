@@ -86,8 +86,9 @@ export class PageService {
   }
 
   delete(id: string): void {
-    this.byId(id);
+    const r = this.byId(id);
     this.db.prepare("DELETE FROM pages WHERE id = ?").run(id);
+    this.files.removeDir(this.path(r.name));
   }
 
   read(token: string): string | null {

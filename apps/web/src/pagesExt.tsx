@@ -1,5 +1,5 @@
 import type { Bot, BridgeDevice, BrowserStatus, ConnectorsStatus, MemoryFile, Routine, SharedPage, Skill, VaultItem } from "@linux-agent/shared";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { api } from "./api";
 import { IconClock, IconFolder, IconGlobe, IconPencil, IconPlay, IconPlus, IconShield, IconTerminal, IconTrash } from "./icons";
 import { useT } from "./i18n";
@@ -9,6 +9,11 @@ type Msg = { ok: boolean; text: string } | null;
 function useMsg(): [Msg, (fn: () => Promise<unknown>, okText?: string) => Promise<void>] {
   const { t } = useT();
   const [msg, setMsg] = useState<Msg>(null);
+  useEffect(() => {
+    if (!msg?.ok) return;
+    const clear = setTimeout(() => setMsg(null), 4000);
+    return () => clearTimeout(clear);
+  }, [msg]);
   const run = useCallback(
     async (fn: () => Promise<unknown>, okText: string = t.saved) => {
       setMsg(null);
@@ -30,7 +35,7 @@ const Note = ({ msg }: { msg: Msg }) => (msg ? <div className={msg.ok ? "ok" : "
 const emptyRoutine = { name: "", prompt: "", trigger: "cron" as "cron" | "webhook", cron: "0 8 * * *", timezone: "Asia/Tehran", notify: true };
 
 export function RoutinesPage({ bots, activityTick }: { bots: Bot[]; activityTick: number }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [list, setList] = useState<Routine[]>([]);
   const [form, setForm] = useState({ ...emptyRoutine, botId: "" });
   const [editing, setEditing] = useState<string | null>(null);
@@ -105,6 +110,22 @@ export function RoutinesPage({ bots, activityTick }: { bots: Bot[]; activityTick
             </>
           )}
         </div>
+        {form.trigger === "cron" && (
+          <div className="row" role="group" aria-label={t.presets}>
+            {(
+              [
+                [t.presetDaily, "0 8 * * *"],
+                [t.presetHourly, "0 * * * *"],
+                [t.presetWeekly, "0 9 * * 6"],
+                [t.presetMonthly, "0 9 1 * *"],
+              ] as const
+            ).map(([label, cron]) => (
+              <button key={cron} type="button" className={`ghost${form.cron === cron ? " active" : ""}`} onClick={() => setForm({ ...form, cron })}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <label>
           {t.routinePrompt}
           <textarea rows={3} dir="auto" value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} required />
@@ -140,7 +161,7 @@ export function RoutinesPage({ bots, activityTick }: { bots: Bot[]; activityTick
               <tr>
                 <th>{t.botName}</th>
                 <th>{t.bot}</th>
-                <th>{t.cron}</th>
+                <th>{t.cronShort}</th>
                 <th>{t.nextRun}</th>
                 <th>{t.lastRun}</th>
                 <th />
@@ -152,9 +173,9 @@ export function RoutinesPage({ bots, activityTick }: { bots: Bot[]; activityTick
                   <td dir="auto">{r.name}</td>
                   <td dir="auto">{r.botName}</td>
                   <td dir="ltr">{r.cron ?? t.triggerWebhook}</td>
-                  <td>{r.nextRunAt ? new Date(r.nextRunAt).toLocaleString() : "—"}</td>
+                  <td>{r.nextRunAt ? new Date(r.nextRunAt).toLocaleString(locale, { timeZone: r.timezone }) : "—"}</td>
                   <td>
-                    {r.lastRunAt ? new Date(r.lastRunAt).toLocaleString() : "—"}
+                    {r.lastRunAt ? new Date(r.lastRunAt).toLocaleString(locale, { timeZone: r.timezone }) : "—"}
                     {r.lastRunState && ` · ${t.states[r.lastRunState] ?? r.lastRunState}`}
                   </td>
                   <td>
@@ -371,7 +392,26 @@ function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
   }, [botId, running]);
 
   const send = (input: unknown) => void run(() => api.post(`/api/browser/${botId}/input`, input), "");
-  const point = (e: MouseEvent<HTMLImageElement> | WheelEvent<HTMLImageElement>) => {
+  const wheel = useRef({ deltaY: 0, timer: 0 });
+  // React's wheel handler is passive, so preventDefault needs a listener of its own.
+  useEffect(() => {
+    const el = img.current;
+    if (!el) return;
+    const onWheel = (e: globalThis.WheelEvent) => {
+      e.preventDefault();
+      wheel.current.deltaY += e.deltaY;
+      if (wheel.current.timer) return;
+      const r = el.getBoundingClientRect();
+      const at = { x: Math.round(((e.clientX - r.left) / r.width) * size.current.width), y: Math.round(((e.clientY - r.top) / r.height) * size.current.height) };
+      wheel.current.timer = window.setTimeout(() => {
+        send({ type: "scroll", ...at, deltaY: wheel.current.deltaY });
+        wheel.current = { deltaY: 0, timer: 0 };
+      }, 150);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [running]);
+  const point = (e: MouseEvent<HTMLImageElement>) => {
     const el = img.current!;
     const r = el.getBoundingClientRect();
     return { x: Math.round(((e.clientX - r.left) / r.width) * size.current.width), y: Math.round(((e.clientY - r.top) / r.height) * size.current.height) };
@@ -425,7 +465,6 @@ function LiveBrowser({ botId, vault }: { botId: string; vault: VaultItem[] }) {
           e.currentTarget.focus();
           send({ type: "click", ...point(e) });
         }}
-        onWheel={(e) => send({ type: "scroll", ...point(e), deltaY: e.deltaY })}
         onKeyDown={onKey}
       />
       <form
@@ -567,7 +606,7 @@ export function BrowserPage({ bots }: { bots: Bot[] }) {
 
 // --- shared pages
 export function SharedPagesPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [list, setList] = useState<SharedPage[]>([]);
   const [msg, run] = useMsg();
   const load = useCallback(() => api.get<SharedPage[]>("/api/pages").then(setList, () => {}), []);
@@ -598,7 +637,7 @@ export function SharedPagesPage() {
                       <span className="muted">{t.notShared}</span>
                     )}
                   </td>
-                  <td className="muted">{new Date(p.updatedAt).toLocaleString()}</td>
+                  <td className="muted">{new Date(p.updatedAt).toLocaleString(locale)}</td>
                   <td>
                     <span className="row nowrap">
                       <button className="ghost" onClick={() => void run(() => api.post(`/api/pages/${p.id}/share`, { shared: !p.url }).then(load), "")}>
@@ -774,7 +813,10 @@ export function DevicesSection() {
       {created && (
         <div className="help-box">
           <strong>{t.deviceOnce}</strong>
-          <pre dir="ltr">{`set CWP_BRIDGE_TOKEN=${created.token}\nnode bridge.mjs --url ${location.origin} ${created.folders.map((f) => `--folder "${f}"`).join(" ")}`}</pre>
+          <a className="dl" href="/api/bridge/script" download>
+            {t.downloadBridge}
+          </a>
+          <pre dir="ltr">{`$env:CWP_BRIDGE_TOKEN="${created.token}"\nnode bridge.mjs --url ${location.origin} ${created.folders.map((f) => `--folder "${f}"`).join(" ")}`}</pre>
         </div>
       )}
       <Note msg={msg} />
