@@ -6,6 +6,7 @@ import type { Connectors } from "./connectors.js";
 import type { PanelTool } from "./engine/types.js";
 import type { PageService } from "./pages.js";
 import type { PlatformService } from "./platforms.js";
+import type { UploadService } from "./uploads.js";
 import type { Orchestrator, RunContext } from "./runs/orchestrator.js";
 
 export interface PanelToolDeps {
@@ -16,6 +17,7 @@ export interface PanelToolDeps {
   browser: BrowserService;
   bridge: BridgeService;
   platforms: PlatformService;
+  uploads: UploadService;
 }
 
 const questionShape = z.object({
@@ -39,6 +41,16 @@ export function buildPanelTools(d: PanelToolDeps, ctx: RunContext): PanelTool[] 
         const r = await d.orchestrator().askUser(ctx.run, "questions", { questions: a.questions as never }, ctx.signal);
         if (r.state !== "answered") return "The user did not answer. Continue without this, or stop and say what you need.";
         return JSON.stringify(r.answer?.answers ?? {});
+      },
+    },
+    {
+      name: "send_file",
+      description: "Give the user a file in this chat: they get a download button, and a preview for images, audio and video. Use it whenever your result is a file. path: in the shared workspace (relative or absolute) or in your own folder.",
+      shape: { path: z.string(), caption: z.string().optional() },
+      run: async (a) => {
+        const file = d.uploads.locate(String(a.path));
+        d.orchestrator().addEvent(ctx.run.id, "file", { file, caption: a.caption === undefined ? null : String(a.caption) });
+        return `Sent ${file.name} to the user.`;
       },
     },
     {

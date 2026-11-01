@@ -45,13 +45,9 @@ SUDO
 chmod 0440 /etc/sudoers.d/cwp
 visudo -cf /etc/sudoers.d/cwp
 
-echo "== 4b. shared skills (only missing ones; a skill edited in the panel is kept)"
+echo "== 4b. core skills are read from $APP/deploy/skills; remove old copies of them from the shared folder"
 for dir in "$REPO"/deploy/skills/*/; do
-  name="$(basename "$dir")"
-  if [ ! -e "/home/agent/shared/skills/$name" ]; then
-    install -d -o agent -g agent -m 0755 "/home/agent/shared/skills/$name"
-    install -o agent -g agent -m 0644 "$dir/SKILL.md" "/home/agent/shared/skills/$name/SKILL.md"
-  fi
+  rm -rf -- "/home/agent/shared/skills/$(basename "$dir")"
 done
 
 echo "== 5. env file (created once)"

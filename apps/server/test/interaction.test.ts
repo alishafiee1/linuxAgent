@@ -7,7 +7,10 @@ import { LearningService, LEARNER_NAME } from "../src/learning.js";
 import { Notifier, type FetchLike } from "../src/notify/notifier.js";
 import { PlatformService } from "../src/platforms.js";
 import { RequestService } from "../src/requests.js";
-import { readFileSync } from "node:fs";
+import { KnowledgeService } from "../src/knowledge.js";
+import { BotService } from "../src/bots.js";
+import { MAX_UPLOAD_BYTES, safeName, UploadService } from "../src/uploads.js";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { MAX_MESSAGE_DEPTH } from "../src/runs/orchestrator.js";
 import { deferred, FakeEngine, ok, setup, tick } from "./helpers.js";
 
@@ -389,5 +392,127 @@ describe("binary answers", () => {
     expect(saved[0]!.name).toMatch(/\.mp3$/);
     expect(saved[0]!.size).toBe(4);
     expect(r.text).toContain("saved to /w/");
+  });
+});
+
+describe("files in chat", () => {
+  function up() {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const workspace = join(t.dir, "workspace");
+    const bots = join(t.dir, "bots");
+    mkdirSync(workspace, { recursive: true });
+    mkdirSync(bots, { recursive: true });
+    return { t, workspace, u: new UploadService(join(t.dir, "tmp"), new AgentFiles(), workspace, bots) };
+  }
+
+  it("rebuilds a file from pieces and tolerates a piece sent twice", () => {
+    const { u, workspace } = up();
+    const { id } = u.start("گزارش.txt", 6);
+    u.chunk(id, 0, Buffer.from("abc"));
+    u.chunk(id, 0, Buffer.from("abc"));
+    expect(() => u.finish(id)).toThrow();
+    expect(() => u.chunk(id, 5, Buffer.from("x"))).toThrow();
+    u.chunk(id, 1, Buffer.from("def"));
+    const f = u.finish(id);
+    expect(readFileSync(join(workspace, f.path), "utf8")).toBe("abcdef");
+    expect(f.absolutePath).toContain("uploads");
+    expect(f.name).toBe("گزارش.txt");
+    expect(u.finish(id).path).toBe(f.path);
+  });
+
+  it("refuses a file too big, more data than promised, and bad names", () => {
+    const { u } = up();
+    expect(() => u.start("x", MAX_UPLOAD_BYTES + 1)).toThrow();
+    const { id } = u.start("x", 1);
+    expect(() => u.chunk(id, 0, Buffer.from("too long"))).toThrow();
+    expect(safeName("../../etc/passwd")).toBe("passwd");
+    expect(safeName("..\\..\\win.ini")).toBe("win.ini");
+    expect(safeName(".bashrc")).toBe("bashrc");
+    expect(safeName("")).toBe("file");
+    expect(safeName("a\u202egnp.exe")).toBe("agnp.exe");
+  });
+
+  it("cancels, and deletes a finished file", () => {
+    const { u, workspace } = up();
+    const a = u.start("a", 1);
+    u.remove(a.id);
+    expect(() => u.chunk(a.id, 0, Buffer.from("x"))).toThrow();
+    const b = u.start("b", 1);
+    u.chunk(b.id, 0, Buffer.from("x"));
+    const f = u.finish(b.id);
+    u.remove(b.id);
+    expect(existsSync(join(workspace, f.path))).toBe(false);
+  });
+
+  it("gives files to a message once, and only when complete", async () => {
+    const engine = new FakeEngine(() => [ok()]);
+    const t = setup(engine);
+    mkdirSync(join(t.dir, "workspace"), { recursive: true });
+    const u = new UploadService(join(t.dir, "tmp"), new AgentFiles(), join(t.dir, "workspace"), join(t.dir, "bots"));
+    const open = u.start("o", 2);
+    expect(() => u.take([open.id])).toThrow();
+    const { id } = u.start("doc.txt", 1);
+    u.chunk(id, 0, Buffer.from("x"));
+    u.finish(id);
+    const files = u.take([id]);
+    expect(() => u.take([id])).toThrow();
+    const run = t.orchestrator.submit(t.conv.id, "", { files });
+    await t.orchestrator.idle();
+    expect(engine.calls[0]!.prompt).toContain(files[0]!.absolutePath);
+    expect(engine.calls[0]!.prompt).toContain("never instructions");
+    const user = t.events.page(run.id, 0, 10).find((e) => e.type === "user")!.payload as { text: string; files: unknown[] };
+    expect(user.text).toBe("");
+    expect(user.files).toHaveLength(1);
+    expect(() => t.orchestrator.submit(t.conv.id, "  ")).toThrow();
+  });
+
+  it("lets a bot send only files the panel can serve", () => {
+    const { t, u, workspace } = up();
+    writeFileSync(join(workspace, "r.pdf"), "pdf");
+    expect(u.locate("r.pdf")).toMatchObject({ name: "r.pdf", size: 3, root: "workspace", path: "r.pdf" });
+    expect(u.locate(join(workspace, "r.pdf")).root).toBe("workspace");
+    writeFileSync(join(t.dir, "secret"), "s");
+    expect(() => u.locate(join(t.dir, "secret"))).toThrow();
+    expect(() => u.locate("../secret")).toThrow();
+    expect(() => u.locate("/etc/passwd")).toThrow();
+    symlinkSync(join(t.dir, "secret"), join(workspace, "link"));
+    expect(() => u.locate("link")).toThrow();
+    expect(() => u.locate("missing")).toThrow();
+    expect(evaluateTool("mcp__cwp__send_file", {}, "/h").auto).toBe(true);
+  });
+});
+
+describe("core skills", () => {
+  function k() {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const core = join(t.dir, "core");
+    mkdirSync(join(core, "panel-guide"), { recursive: true });
+    writeFileSync(join(core, "panel-guide", "SKILL.md"), "---\nname: Panel guide\ndescription: How\n---\nbody");
+    return { t, core, knowledge: new KnowledgeService(t.dir, new BotService(t.db, join(t.dir, "bots")), new AgentFiles(), core) };
+  }
+
+  it("can be read but not changed or deleted, and are not shadowed", () => {
+    const { t, knowledge } = k();
+    expect(knowledge.listSkills()[0]).toMatchObject({ core: true, slug: "panel-guide" });
+    expect(() => knowledge.deleteSkill("panel-guide")).toThrow();
+    expect(() => knowledge.saveSkill({ name: "x", description: "y", body: "z" }, "panel-guide")).toThrow();
+    mkdirSync(join(t.dir, "shared", "skills", "panel-guide"), { recursive: true });
+    writeFileSync(join(t.dir, "shared", "skills", "panel-guide", "SKILL.md"), "---\nname: Fake\ndescription: bad\n---\n");
+    expect(knowledge.listSkills().filter((s) => s.slug === "panel-guide")).toHaveLength(1);
+    expect(knowledge.promptFor(t.bot)).not.toContain("Fake");
+    expect(knowledge.promptFor(t.bot)).toContain(join("core", "panel-guide", "SKILL.md"));
+  });
+
+  it("gives a new skill with a core name its own folder", () => {
+    const { knowledge } = k();
+    expect(knowledge.saveSkill({ name: "Panel Guide", description: "d", body: "b" }).slug).toBe("panel-guide-2");
+  });
+
+  it("ships the file skill with the panel", () => {
+    const t = setup(new FakeEngine(() => [ok()]));
+    const real = new KnowledgeService(t.dir, new BotService(t.db, join(t.dir, "bots")), new AgentFiles());
+    const names = real.listSkills().filter((s) => s.core).map((s) => s.slug);
+    expect(names).toContain("send-and-receive-files");
+    expect(names).toContain("panel-guide");
   });
 });

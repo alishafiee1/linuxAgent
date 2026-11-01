@@ -2,7 +2,7 @@
 // so these tests use no subscription. Needs a built web app and Chromium. Run: pnpm e2e
 import { authenticator } from "otplib";
 import { chromium, type Browser, type Page } from "playwright-core";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -21,6 +21,7 @@ import { buildPanelTools } from "../src/panelTools.js";
 import { PlatformService } from "../src/platforms.js";
 import { RequestService } from "../src/requests.js";
 import { RoutineService } from "../src/routines/service.js";
+import { UploadService } from "../src/uploads.js";
 import { EventStore } from "../src/runs/events.js";
 import { Orchestrator } from "../src/runs/orchestrator.js";
 import { SettingsStore } from "../src/settings.js";
@@ -45,6 +46,13 @@ class ScriptedEngine implements Engine {
     if (o.prompt.includes("ASK")) out = await tool("ask_user").run({ questions: QUESTIONS });
     if (o.prompt.includes("CONNECT")) out = await tool("request_connection").run({ platform: "notion", reason: "برای خواندن صفحه‌ها" });
     if (o.prompt.includes("TAKEOVER")) out = await tool("request_browser_takeover").run({ reason: "لطفاً وارد شوید" });
+    if (o.prompt.includes("GIVEFILE")) {
+      writeFileSync(join(o.cwd, "report.txt"), "report body");
+      writeFileSync(join(o.cwd, "chart.png"), Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAAMBAQAY3Y2wAAAAAElFTkSuQmCC", "base64"));
+      await tool("send_file").run({ path: "report.txt", caption: "گزارش آماده است" });
+      out = await tool("send_file").run({ path: "chart.png" });
+    }
+    if (o.prompt.includes("/uploads/")) out = `I got ${o.prompt.match(/\/uploads\/\S+/)?.[0] ?? ""}`;
     if (o.prompt.includes("SEND")) out = await tool("send_message_to_bot").run({ bot: "دوم", message: "سلام" });
     if (o.prompt.includes("WRITE")) {
       const input = { connection: "github", method: "POST", path: "/repos/a/b/issues" };
@@ -59,6 +67,7 @@ let browser: Browser;
 let page: Page;
 let base: string;
 let requests: RequestService;
+let workspace: string;
 let bots: BotService;
 let close: () => Promise<void>;
 let login: { password: string; secret: string };
@@ -86,6 +95,10 @@ beforeAll(async () => {
     return new Response("{}", { status: 200 });
   }) as unknown as typeof fetch);
   const knowledge = new KnowledgeService(dir, bots, files);
+  mkdirSync(join(dir, "workspace"), { recursive: true });
+  mkdirSync(join(dir, "bots"), { recursive: true });
+  workspace = join(dir, "workspace");
+  const uploads = new UploadService(join(dir, "tmp"), files, workspace, join(dir, "bots"));
   const orchestrator: Orchestrator = new Orchestrator({
     db,
     engine: new ScriptedEngine(),
@@ -96,7 +109,7 @@ beforeAll(async () => {
     requests,
     workspaceDir: join(dir, "workspace"),
     agentHome: dir,
-    toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser: browserSvc, bridge, platforms }, ctx),
+    toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser: browserSvc, bridge, platforms, uploads }, ctx),
   });
   approvals.onChange({
     created: (a) => events.activity({ kind: "approval", approvalId: a.id, state: a.state }),
@@ -118,7 +131,7 @@ beforeAll(async () => {
     settings,
     notifier: null,
     proxy: null,
-    ext: { routines, knowledge, vault, browser: browserSvc, pages, connectors, bridge, platforms, requests },
+    ext: { routines, knowledge, vault, browser: browserSvc, pages, connectors, bridge, platforms, requests, uploads },
   });
   await app.listen({ host: "127.0.0.1", port: 0 });
   const addr = app.server.address() as { port: number };
@@ -272,6 +285,83 @@ describe.skipIf(!available)("panel end to end", () => {
     await card.waitFor({ state: "detached" });
     await expect.poll(() => page.locator(".bubble.assistant").last().innerText()).toContain("done");
   }, 60_000);
+
+  it("attaches a file with progress, can remove it, and the bot gets its path", async () => {
+    const picker = page.locator('[data-testid="file-picker"]');
+    await picker.setInputFiles({ name: "حذف.txt", mimeType: "text/plain", buffer: Buffer.from("remove me") });
+    const first = page.locator(".upload-item", { hasText: "حذف.txt" });
+    await first.locator(".upload-meta", { hasText: "آماده" }).waitFor();
+    await first.locator("button").click();
+    await first.waitFor({ state: "detached" });
+
+    const big = Buffer.alloc(3 * 1024 * 1024 + 17, 7);
+    await picker.setInputFiles({ name: "big.bin", mimeType: "application/octet-stream", buffer: big });
+    await page.locator(".upload-item.done", { hasText: "big.bin" }).waitFor({ timeout: 20_000 });
+    await shot("upload-ready");
+    await page.locator(".composer button.primary").click();
+    await page.locator(".upload-item").waitFor({ state: "detached" });
+    const reply = page.locator(".bubble.assistant", { hasText: "big.bin" }).last();
+    await reply.waitFor();
+    const rel = (await reply.innerText()).match(/uploads\/\S+/)![0];
+    expect(readFileSync(join(workspace, rel)).equals(big)).toBe(true);
+    await page.locator(".bubble.user a.dl").last().waitFor();
+  }, 40_000);
+
+  it("takes a pasted file with Ctrl+V and leaves pasted text alone", async () => {
+    const box = page.locator(".composer textarea");
+    await box.evaluate((el) => {
+      const data = new DataTransfer();
+      data.items.add(new File(["shot"], "screenshot.png", { type: "image/png" }));
+      el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    });
+    await page.locator(".upload-item.done", { hasText: "screenshot.png" }).waitFor();
+    expect(await box.inputValue()).toBe("");
+    await page.locator(".upload-item button").click();
+  });
+
+  it("shows an error for a file that is too big, and it can be dismissed", async () => {
+    await page.evaluate(() => {
+      const input = document.querySelector<HTMLInputElement>('[data-testid="file-picker"]')!;
+      const data = new DataTransfer();
+      const huge = new File([new ArrayBuffer(1)], "huge.bin");
+      Object.defineProperty(huge, "size", { value: 60 * 1024 * 1024 });
+      data.items.add(huge);
+      Object.defineProperty(input, "files", { value: [huge], configurable: true });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const row = page.locator(".upload-item.error", { hasText: "huge.bin" });
+    await row.waitFor();
+    expect(await row.innerText()).toContain("مگابایت");
+    await row.locator("button.icon-btn").click();
+    await row.waitFor({ state: "detached" });
+  });
+
+  it("lets a bot give the person files to download, with a preview", async () => {
+    await send("GIVEFILE");
+    const card = page.locator(".file-card", { hasText: "report.txt" });
+    await card.waitFor();
+    expect(await card.innerText()).toContain("گزارش آماده است");
+    const [download] = await Promise.all([page.waitForEvent("download"), card.locator("a.dl").click()]);
+    expect(download.suggestedFilename()).toBe("report.txt");
+    const image = page.locator(".file-card img");
+    await image.waitFor();
+    await expect.poll(() => image.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1);
+    await shot("file-cards");
+    const script = await page.evaluate(async () => {
+      const r = await fetch("/api/files/download?root=workspace&path=report.txt&inline=1");
+      return r.headers.get("content-disposition");
+    });
+    expect(script).toContain("attachment");
+  });
+
+  it("shows core skills as locked and refuses to delete them", async () => {
+    await openPage("حافظه");
+    const row = page.locator(".row", { hasText: "Panel guide" });
+    await row.locator(".pill").waitFor();
+    expect(await row.locator("button").count()).toBe(0);
+    const status = await page.evaluate(async () => (await fetch("/api/skills/panel-guide", { method: "DELETE", headers: { "x-cwp": "1" } })).status);
+    expect(status).toBe(403);
+  });
 
   it("lets one bot message another without waiting", async () => {
     await send("SEND");

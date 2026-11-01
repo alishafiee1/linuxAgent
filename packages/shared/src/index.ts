@@ -81,6 +81,7 @@ export type RunEventType =
   | "state"
   | "approval"
   | "request"
+  | "file"
   | "notice"
   | "result"
   | "error";
@@ -211,6 +212,8 @@ export interface RoutineInput {
 
 // --- skills and memory (cycle 002)
 export interface Skill {
+  /** Comes with the panel: it can be read but not changed or deleted. */
+  core: boolean;
   slug: string;
   name: string;
   description: string;
@@ -369,4 +372,14 @@ export interface PlatformInfo {
   steps: string[];
   testable: boolean;
   redirectUri: string | null;
+}
+
+// --- files in chat (cycle 014)
+export interface ChatFile {
+  name: string;
+  size: number;
+  root: "workspace" | "bots";
+  /** Relative to its root, for download links. */
+  path: string;
+  absolutePath: string;
 }

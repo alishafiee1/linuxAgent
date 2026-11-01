@@ -17,6 +17,7 @@ import { buildPanelTools } from "../src/panelTools.js";
 import { isValidTimezone, nextCron, parseCron } from "../src/routines/cron.js";
 import { RoutineService } from "../src/routines/service.js";
 import { MAX_DELEGATION_DEPTH } from "../src/runs/orchestrator.js";
+import { UploadService } from "../src/uploads.js";
 import { VaultService } from "../src/vault.js";
 import { execute, insideFolders } from "../../../deploy/desktop-bridge/bridge.mjs";
 import { deferred, FakeEngine, KEY, ok, setup, tick } from "./helpers.js";
@@ -32,7 +33,7 @@ function services(t: ReturnType<typeof setup>) {
   const connectors = new Connectors(t.settings, "https://panel.test");
   const bridge = new BridgeService(t.db);
   const routines = new RoutineService({ db: t.db, bots: t.bots, orchestrator: t.orchestrator });
-  return { files, knowledge, vault, browser, pages, connectors, bridge, routines, platforms: new PlatformService(t.settings, "https://panel.test"), requests: new RequestService(t.db) };
+  return { files, knowledge, vault, browser, pages, connectors, bridge, routines, platforms: new PlatformService(t.settings, "https://panel.test"), requests: new RequestService(t.db), uploads: new UploadService(join(t.dir, "tmp"), files, join(t.dir, "workspace"), join(t.dir, "bots")) };
 }
 
 async function api(t: ReturnType<typeof setup>) {
@@ -146,7 +147,7 @@ describe("skills and memory", () => {
     expect(knowledge.promptFor(t.bot)).toContain("Morning Report: How to write it");
     expect((await app.inject({ method: "DELETE", url: "/api/skills/..%2F..%2Fetc", headers: h })).statusCode).toBe(404);
     expect((await app.inject({ method: "DELETE", url: `/api/skills/${again.slug}`, headers: h })).statusCode).toBe(200);
-    expect(knowledge.listSkills()).toHaveLength(1);
+    expect(knowledge.listSkills().filter((s) => !s.core)).toHaveLength(1);
   });
 
   it("edits shared and per-bot memory, and shared memory reaches the prompt", async () => {

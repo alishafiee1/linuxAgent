@@ -1747,3 +1747,89 @@ label.q-option span {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* files in chat */
+.composer.dragging form {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+}
+
+.upload-tray {
+  max-width: 780px;
+  margin: 0 auto 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.upload-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.upload-item.error {
+  border-color: var(--bad);
+}
+
+.upload-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.upload-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.upload-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--tr);
+}
+
+.file-card {
+  display: grid;
+  gap: 8px;
+  min-width: min(320px, 70vw);
+  max-width: 100%;
+}
+
+.file-card img,
+.file-card video {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: var(--r-sm);
+}
+
+.file-card audio {
+  width: 100%;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: normal;
+}

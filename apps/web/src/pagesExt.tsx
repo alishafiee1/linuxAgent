@@ -276,7 +276,9 @@ export function KnowledgePage() {
             {t.newSkill}
           </button>
         </div>
-        <p className="muted">{t.skillsHelp}</p>
+        <p className="muted">
+          {t.skillsHelp} {t.coreSkillHelp}
+        </p>
         {skills.length === 0 && !skill && <div className="muted">{t.empty}</div>}
         {skills.map((s) => (
           <div key={s.slug} className="row">
@@ -286,19 +288,25 @@ export function KnowledgePage() {
                 {s.description}
               </div>
             </div>
-            <button className="ghost icon-btn" title={t.edit} aria-label={t.edit} onClick={() => setSkill({ slug: s.slug, name: s.name, description: s.description, body: s.body })}>
-              <IconPencil size={14} />
-            </button>
-            <button
-              className="ghost icon-btn danger"
-              title={t.delete}
-              aria-label={t.delete}
-              onClick={() => {
-                if (confirm(`${s.name}\n\n${t.confirmDeleteItem}`)) void runSkill(() => api.del(`/api/skills/${s.slug}`).then(loadSkills), "");
-              }}
-            >
-              <IconTrash size={14} />
-            </button>
+            {s.core ? (
+              <span className="pill">{t.coreSkill}</span>
+            ) : (
+              <>
+                <button className="ghost icon-btn" title={t.edit} aria-label={t.edit} onClick={() => setSkill({ slug: s.slug, name: s.name, description: s.description, body: s.body })}>
+                  <IconPencil size={14} />
+                </button>
+                <button
+                  className="ghost icon-btn danger"
+                  title={t.delete}
+                  aria-label={t.delete}
+                  onClick={() => {
+                    if (confirm(`${s.name}\n\n${t.confirmDeleteItem}`)) void runSkill(() => api.del(`/api/skills/${s.slug}`).then(loadSkills), "");
+                  }}
+                >
+                  <IconTrash size={14} />
+                </button>
+              </>
+            )}
           </div>
         ))}
         {skill && (

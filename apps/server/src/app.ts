@@ -5,7 +5,7 @@ import type { BotInput, FileEntry, RunEvent, SettingsInput, UsageReport } from "
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { createReadStream, realpathSync, statSync, statfsSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
-import { basename, join, relative, resolve, sep } from "node:path";
+import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { ApprovalService } from "./approval/service.js";
 import { MSG_ALREADY_DECIDED } from "./approval/service.js";
@@ -19,6 +19,8 @@ import type { EventStore } from "./runs/events.js";
 import type { Orchestrator } from "./runs/orchestrator.js";
 import { registerExtRoutes, type ExtDeps } from "./routesExt.js";
 import type { SettingsStore } from "./settings.js";
+
+const INLINE_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".mp4": "video/mp4", ".webm": "video/webm" };
 
 export const COOKIE = "cwp_session";
 export const MSG_LOW_DISK = "فضای دیسک کم است";
@@ -185,8 +187,9 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     runs: d.orchestrator.listForConversation(req.params.id),
   }));
   app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req) => {
-    const { text } = parse(z.object({ text: z.string().min(1).max(100_000) }), req.body);
-    const run = d.orchestrator.submit(req.params.id, text);
+    const { text, attachments } = parse(z.object({ text: z.string().max(100_000), attachments: z.array(z.string()).max(20).optional() }), req.body);
+    const files = attachments?.length ? (d.ext?.uploads.take(attachments) ?? []) : [];
+    const run = d.orchestrator.submit(req.params.id, text, { files });
     return { runId: run.id };
   });
   app.get<{ Params: { id: string } }>("/api/runs/:id", async (req) => d.orchestrator.get(req.params.id));
@@ -294,11 +297,19 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     }
     return out.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
   });
-  app.get<{ Querystring: { root?: string; path?: string } }>("/api/files/download", async (req, reply) => {
+  app.get<{ Querystring: { root?: string; path?: string; inline?: string } }>("/api/files/download", async (req, reply) => {
     const rootDir = roots()[req.query.root ?? "workspace"];
     if (!rootDir) throw new HttpError(404, "not_found", "پیدا نشد.");
     const file = resolveInRoot(rootDir, req.query.path ?? "");
     if (!statSync(file).isFile()) throw new HttpError(404, "not_found", "پیدا نشد.");
+    // Only plain media opens in the browser. HTML or SVG from a bot could run script on the panel's address.
+    const media = req.query.inline ? INLINE_TYPES[extname(file).toLowerCase()] : undefined;
+    reply.header("x-content-type-options", "nosniff");
+    if (media) {
+      reply.header("content-disposition", "inline");
+      reply.type(media);
+      return reply.send(createReadStream(file));
+    }
     reply.header("content-disposition", `attachment; filename*=UTF-8''${encodeURIComponent(basename(file))}`);
     reply.type("application/octet-stream");
     return reply.send(createReadStream(file));
