@@ -1,10 +1,12 @@
-import type { Bot, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import type { Bot, ChatFile, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
 import { api } from "./api";
-import { IconActivity, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
+import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
+import { ApprovalDetails } from "./pages";
 import { RequestCard } from "./requests";
+import { FileCard, UploadTray, useLeaveGuard, useUploads } from "./uploads";
 
 const ACTIVE = new Set(["queued", "running", "waiting_approval", "waiting_limit"]);
 
@@ -29,6 +31,10 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
   const bottom = useRef<HTMLDivElement>(null);
   const messages = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const uploads = useUploads();
+  const picker = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  useLeaveGuard(uploads.busy);
 
   // Follow new output unless the user scrolled up to read.
   useEffect(() => {
@@ -75,7 +81,8 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
 
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() && !uploads.ready.length) return;
+    if (uploads.busy) return setError(t.uploadWait);
     setError("");
     try {
       let id = convId;
@@ -85,14 +92,28 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
         await loadConversations();
         setConvId(id);
       }
-      await api.post(`/api/conversations/${id}/messages`, { text });
+      await api.post(`/api/conversations/${id}/messages`, { text, attachments: uploads.ready });
       setText("");
+      uploads.clear();
       stick.current = true;
       await loadRuns();
       setTimeout(() => bottom.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
       setError((err as Error).message);
     }
+  };
+
+  // Ctrl+V with a copied file or screenshot; plain text pastes as usual.
+  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = [...e.clipboardData.files];
+    if (!pasted.length) return;
+    e.preventDefault();
+    uploads.add(pasted);
+  };
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    uploads.add([...e.dataTransfer.files]);
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -133,10 +154,33 @@ export function Chat({ bot, activityTick }: { bot: Bot; activityTick: number }) 
         ))}
         <div ref={bottom} />
       </div>
-      <div className="composer">
+      <div
+        className={`composer${dragging ? " dragging" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        <UploadTray items={uploads.items} onRemove={uploads.remove} onRetry={uploads.retry} />
         <form onSubmit={send}>
-          <textarea rows={2} dir="auto" value={text} placeholder={t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} />
-          <button className="primary send-btn" disabled={!text.trim()}>
+          <input
+            ref={picker}
+            type="file"
+            multiple
+            hidden
+            data-testid="file-picker"
+            onChange={(e) => {
+              uploads.add([...(e.target.files ?? [])]);
+              e.target.value = "";
+            }}
+          />
+          <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
+            <IconArrowUp size={16} />
+          </button>
+          <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
+          <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
             {t.send}
             <IconSend size={15} />
           </button>
@@ -200,7 +244,7 @@ function ToolCard({ name, input, result, isError }: { name: string; input: unkno
   );
 }
 
-function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: string; input: unknown; reason: string } }) {
+function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: string; input: unknown; summary?: string; reason: string } }) {
   const { t } = useT();
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -220,7 +264,7 @@ function ApprovalCard({ payload }: { payload: { approvalId: string; toolName: st
         </span>
         <strong>{payload.reason}</strong>
       </div>
-      <pre>{JSON.stringify(payload.input, null, 2)}</pre>
+      <ApprovalDetails summary={payload.summary} toolName={payload.toolName} input={payload.input} />
       {!done && (
         <div className="row approval-actions">
           <button className="primary" onClick={() => void decide(true)}>
@@ -264,7 +308,10 @@ function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged
           case "user":
             return (
               <div key={e.seq} className="msg">
-                <div className="bubble user"><div dir="auto">{String(p.text)}</div></div>
+                <div className="bubble user">
+                  {p.text ? <div dir="auto">{String(p.text)}</div> : null}
+                  {(p.files as ChatFile[] | undefined)?.map((f) => <FileCard key={f.path} file={f} />)}
+                </div>
               </div>
             );
           case "assistant_text":
@@ -304,6 +351,14 @@ function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged
               </div>
             ) : null;
           }
+          case "file":
+            return (
+              <div key={e.seq} className="msg">
+                <div className="bubble assistant">
+                  <FileCard file={p.file as ChatFile} caption={p.caption ? String(p.caption) : undefined} />
+                </div>
+              </div>
+            );
           case "request":
             if (p.state === "pending") {
               if (closed.has(String(p.requestId)) || !ACTIVE.has(state)) return null;

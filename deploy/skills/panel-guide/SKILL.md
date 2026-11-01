@@ -16,10 +16,13 @@ The user gives you work in the panel and may close their laptop. They see what y
 | The user to act on a web page | `request_browser_takeover` | guess a code or try to get past a CAPTCHA |
 | Work from another bot, and its answer | `delegate_to_bot` | repeat its specialty yourself |
 | To tell another bot something | `send_message_to_bot` | wait for it |
+| To give the user a file | `send_file` | paste binary or just name a path |
 | To share a report by link | `publish_page`, then `update_page` | paste a long report in chat |
 | A site's password | ask the user to fill it from the vault in the live browser | ask for the password |
 
-Related skills: ask-the-user, connect-a-service, browser-takeover, work-with-other-bots, share-a-report, learn-the-user.
+Files the user attaches are listed in their message. See send-and-receive-files.
+
+Related skills: send-and-receive-files, ask-the-user, connect-a-service, browser-takeover, work-with-other-bots, share-a-report, learn-the-user.
 
 ## Approvals
 

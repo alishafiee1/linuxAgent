@@ -11,6 +11,7 @@ import { PAGE_CSP, type PageService } from "./pages.js";
 import type { PlatformService } from "./platforms.js";
 import type { RequestService } from "./requests.js";
 import type { RoutineService } from "./routines/service.js";
+import { CHUNK_BYTES, type UploadService } from "./uploads.js";
 import type { VaultService } from "./vault.js";
 
 export interface ExtDeps {
@@ -23,6 +24,7 @@ export interface ExtDeps {
   bridge: BridgeService;
   platforms: PlatformService;
   requests: RequestService;
+  uploads: UploadService;
 }
 
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
@@ -56,6 +58,26 @@ const html = (title: string, text: string): string =>
 
 /** Routes of cycles 002–006. `/p/`, `/hook/`, `/oauth/` and `/bridge/` sit outside /api: they have their own proof. */
 export function registerExtRoutes(app: FastifyInstance, d: ExtDeps): void {
+  // --- files in chat
+  app.post("/api/uploads", async (req) => {
+    const b = parse(z.object({ name: z.string().max(500), size: z.number() }), req.body);
+    return d.uploads.start(b.name, b.size);
+  });
+  void app.register(async (scope) => {
+    scope.removeAllContentTypeParsers();
+    scope.addContentTypeParser("*", { parseAs: "buffer", bodyLimit: CHUNK_BYTES + 1024 }, (_req, body, done) => done(null, body));
+    scope.put<{ Params: { id: string; index: string } }>("/api/uploads/:id/chunks/:index", async (req) => {
+      const index = Number(req.params.index);
+      if (!Number.isInteger(index) || index < 0) throw new HttpError(400, "bad_chunk", "شمارهٔ قطعه نامعتبر است.");
+      return d.uploads.chunk(req.params.id, index, req.body as Buffer);
+    });
+  });
+  app.post<{ Params: { id: string } }>("/api/uploads/:id/finish", async (req) => d.uploads.finish(req.params.id));
+  app.delete<{ Params: { id: string } }>("/api/uploads/:id", async (req) => {
+    d.uploads.remove(req.params.id);
+    return { ok: true };
+  });
+
   // --- routines
   app.get("/api/routines", async () => d.routines.list());
   app.post("/api/routines", async (req) => d.routines.create(parse(routineInput, req.body) as RoutineInput));

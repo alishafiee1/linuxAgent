@@ -22,6 +22,7 @@
 - [010 — تحویل مرورگر به کاربر](cycles/010-browser-takeover/simple.md)
 - [011 — مهارت‌های پنل و کاربردی](cycles/011-skill-pack/simple.md)
 - [012 — آزمون‌های سراسری](cycles/012-e2e-tests/simple.md)
+- [014 — فایل در چت](cycles/014-files-in-chat/simple.md)
 
 ## لغوشده
 

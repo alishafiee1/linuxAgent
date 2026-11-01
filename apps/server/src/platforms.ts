@@ -3,6 +3,8 @@ import { HttpError, slugify } from "./bots.js";
 import type { SettingsStore } from "./settings.js";
 
 const RESPONSE_LIMIT = 30_000;
+const TEXT_TYPE = /^text\/|json|xml|javascript|yaml|x-www-form-urlencoded/i;
+const EXTENSIONS: Record<string, string> = { "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "video/mp4": "mp4", "application/pdf": "pdf", "application/zip": "zip" };
 
 interface PlatformDef {
   id: string;
@@ -73,6 +75,8 @@ export class PlatformService {
     private settings: SettingsStore,
     private publicBaseUrl: string,
     private fetchFn: typeof fetch = fetch,
+    /** Saves a binary answer in the shared workspace and returns its path. */
+    private saveFile?: (name: string, data: Buffer) => string,
   ) {}
 
   private key(id: string, f: PlatformField): string {
@@ -193,6 +197,14 @@ export class PlatformService {
       body: body || undefined,
       signal: AbortSignal.timeout(30_000),
     });
+    const type = res.headers.get("content-type") ?? "";
+    if (type && !TEXT_TYPE.test(type)) {
+      const data = Buffer.from(await res.arrayBuffer());
+      if (!this.saveFile) return { status: res.status, text: `(binary answer, ${data.length} bytes, ${type})` };
+      const ext = EXTENSIONS[type.split(";")[0]!.trim().toLowerCase()] ?? "bin";
+      const path = this.saveFile(`${id}-${Date.now()}.${ext}`, data);
+      return { status: res.status, text: `Binary answer (${type}, ${data.length} bytes) saved to ${path}` };
+    }
     let text = (await res.text()).slice(0, RESPONSE_LIMIT);
     for (const f of p.fields) {
       const v = f.secret ? this.field(p, f.key) : "";

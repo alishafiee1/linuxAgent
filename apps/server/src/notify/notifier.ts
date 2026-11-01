@@ -49,8 +49,7 @@ export class BotApi {
 }
 
 function approvalText(a: Approval): string {
-  const input = JSON.stringify(a.input, null, 1) ?? "";
-  return [`درخواست تأیید از بات «${a.botName}»`, `کار: ${a.reason}`, `ابزار: ${a.toolName}`, "", input.length > 900 ? `${input.slice(0, 900)}…` : input].join("\n");
+  return [`بات «${a.botName}» اجازه می‌خواهد`, `کار: ${a.reason}`, "", a.summary].join("\n");
 }
 
 function decisionLine(a: Approval): string {

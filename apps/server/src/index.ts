@@ -1,3 +1,4 @@
+import { dirname, join } from "node:path";
 import { ApprovalService } from "./approval/service.js";
 import { AuthService } from "./auth/service.js";
 import { buildApp } from "./app.js";
@@ -15,6 +16,7 @@ import { PlatformService } from "./platforms.js";
 import { RequestService } from "./requests.js";
 import { buildPanelTools } from "./panelTools.js";
 import { RoutineService } from "./routines/service.js";
+import { UploadService } from "./uploads.js";
 import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
 import { ProxyService } from "./proxy/service.js";
@@ -48,8 +50,13 @@ const browser = new BrowserService({
 });
 const pages = new PageService(db, agentFiles, config.workspaceDir, config.publicBaseUrl);
 const connectors = new Connectors(settings, config.publicBaseUrl);
-const platforms = new PlatformService(settings, config.publicBaseUrl);
+const platforms = new PlatformService(settings, config.publicBaseUrl, fetch, (name, data) => {
+  const path = join(config.workspaceDir, "downloads", name);
+  agentFiles.write(path, data);
+  return path;
+});
 const requests = new RequestService(db);
+const uploads = new UploadService(join(dirname(config.dbPath), "uploads-tmp"), agentFiles, config.workspaceDir, config.botsDir);
 const bridge = new BridgeService(db);
 
 const orchestrator: Orchestrator = new Orchestrator({
@@ -64,7 +71,7 @@ const orchestrator: Orchestrator = new Orchestrator({
   networkUp: () => proxy.isUp(),
   requests,
   promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor()].filter(Boolean).join("\n\n"),
-  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms }, ctx),
+  toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms, uploads }, ctx),
   mcpServersFor: (bot) => browser.mcpServers(bot),
   policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),
 });
@@ -82,7 +89,7 @@ notifier.attachRequests(requests, config.publicBaseUrl);
 const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
 const routines = new RoutineService({ db, bots, orchestrator, notify: (text) => notifier.notify(text) });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests } });
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
 
 orchestrator.recover();
 notifier.reload();

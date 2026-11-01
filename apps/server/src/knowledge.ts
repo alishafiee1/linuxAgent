@@ -2,6 +2,7 @@ import type { Bot, MemoryFile, Skill, SkillInput } from "@linux-agent/shared";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { HttpError, slugify, type BotService } from "./bots.js";
 
 export const MEMORY_LIMIT = 100_000;
@@ -19,7 +20,7 @@ export class AgentFiles {
     }
   }
 
-  write(path: string, content: string): void {
+  write(path: string, content: string | Buffer): void {
     if (this.agentExec.length === 0) {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, content);
@@ -41,10 +42,13 @@ export class AgentFiles {
   }
 }
 
-function parseSkill(slug: string, text: string): Skill {
+/** Installed with the app and owned by root, so neither a person nor a bot can change them. */
+export const CORE_SKILLS_DIR = fileURLToPath(new URL("../../../deploy/skills", import.meta.url));
+
+function parseSkill(slug: string, text: string, core: boolean): Skill {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text);
   const field = (k: string): string => new RegExp(`^${k}:\\s*(.*)$`, "m").exec(m?.[1] ?? "")?.[1]?.trim() ?? "";
-  return { slug, name: field("name") || slug, description: field("description"), body: m ? (m[2] ?? "") : text };
+  return { core, slug, name: field("name") || slug, description: field("description"), body: m ? (m[2] ?? "") : text };
 }
 
 const oneLine = (s: string): string => s.replace(/\s+/g, " ").trim();
@@ -61,24 +65,40 @@ export class KnowledgeService {
     agentHome: string,
     private bots: BotService,
     private files: AgentFiles,
+    private coreDir: string = CORE_SKILLS_DIR,
   ) {
     this.skillsDir = join(agentHome, "shared", "skills");
     this.sharedMemory = join(agentHome, "shared", "MEMORY.md");
   }
 
-  listSkills(): Skill[] {
+  private readDir(dir: string, core: boolean, skip: Set<string>): Skill[] {
     let dirs: string[];
     try {
-      dirs = readdirSync(this.skillsDir);
+      dirs = readdirSync(dir);
     } catch {
       return [];
     }
     const out: Skill[] = [];
     for (const slug of dirs.sort()) {
-      const text = this.files.read(join(this.skillsDir, slug, "SKILL.md"));
-      if (text !== null) out.push(parseSkill(slug, text));
+      if (skip.has(slug)) continue;
+      const text = this.files.read(join(dir, slug, "SKILL.md"));
+      if (text !== null) out.push(parseSkill(slug, text, core));
     }
     return out;
+  }
+
+  /** Core skills first. A folder in the shared area with a core name is ignored, so a core skill cannot be replaced. */
+  listSkills(): Skill[] {
+    const core = this.readDir(this.coreDir, true, new Set());
+    return [...core, ...this.readDir(this.skillsDir, false, new Set(core.map((s) => s.slug)))];
+  }
+
+  private skillPath(s: Skill): string {
+    return join(s.core ? this.coreDir : this.skillsDir, s.slug, "SKILL.md");
+  }
+
+  private refuseCore(slug: string): void {
+    if (this.listSkills().some((s) => s.core && s.slug === slug)) throw new HttpError(403, "core_skill", "این مهارت پایه است و تغییر یا حذف نمی‌شود.");
   }
 
   private checkedSlug(slug: string): string {
@@ -92,6 +112,7 @@ export class KnowledgeService {
     if (!name || name.length > 80) throw new HttpError(400, "bad_name", "نام مهارت باید ۱ تا ۸۰ نویسه باشد.");
     if (!description || description.length > 300) throw new HttpError(400, "bad_description", "توضیح مهارت باید ۱ تا ۳۰۰ نویسه باشد.");
     if (input.body.length > MEMORY_LIMIT) throw new HttpError(400, "too_long", "متن مهارت خیلی بلند است.");
+    if (slug) this.refuseCore(slug);
     let target = slug ? this.checkedSlug(slug) : slugify(name) === "bot" ? "skill" : slugify(name);
     if (!slug) {
       const taken = new Set(this.listSkills().map((s) => s.slug));
@@ -99,10 +120,11 @@ export class KnowledgeService {
       for (let i = 2; taken.has(target); i++) target = `${base}-${i}`;
     }
     this.files.write(join(this.skillsDir, target, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n${input.body}`);
-    return { slug: target, name, description, body: input.body };
+    return { core: false, slug: target, name, description, body: input.body };
   }
 
   deleteSkill(slug: string): void {
+    this.refuseCore(slug);
     this.files.removeDir(join(this.skillsDir, this.checkedSlug(slug)));
   }
 
@@ -134,8 +156,8 @@ export class KnowledgeService {
     const parts = [
       `Shared memory file for all bots: ${this.sharedMemory}. When the user states a preference, corrects you, or shows a way of working, add one short line there so every bot can use it. Never store a password or key. Do not store what is only true today.`,
       shared ? `Current shared memory:\n${shared}` : "",
-      `Shared skills live in ${this.skillsDir}/<name>/SKILL.md, with name and description at the top. When the user teaches you a reusable way of working, save it there so every bot can use it.`,
-      skills.length ? `Available skills. Read the file before doing work it covers:\n${skills.map((s) => `- ${s.name}: ${s.description} (${join(this.skillsDir, s.slug, "SKILL.md")})`).join("\n")}` : "",
+      `New skills go in ${this.skillsDir}/<name>/SKILL.md, with name and description at the top. When the user teaches you a reusable way of working, save it there so every bot can use it. The panel's core skills are read-only. Read "Panel guide" before using panel tools for the first time in a job.`,
+      skills.length ? `Available skills. Read the file before doing work it covers:\n${skills.map((s) => `- ${s.name}: ${s.description} (${this.skillPath(s)})`).join("\n")}` : "",
     ];
     return parts.filter(Boolean).join("\n\n");
   }

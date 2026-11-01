@@ -45,6 +45,7 @@ export const BASH_APPROVAL_PATTERNS: { re: RegExp; label: string }[] = [
 const PANEL_AUTO = new Set([
   "delegate_to_bot",
   "send_message_to_bot",
+  "send_file",
   "ask_user",
   "request_connection",
   "request_browser_takeover",

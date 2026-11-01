@@ -2,6 +2,7 @@ import type { Approval, ApprovalChannel, ApprovalState } from "@linux-agent/shar
 import { randomUUID } from "node:crypto";
 import type { Db } from "../db.js";
 import { now } from "../db.js";
+import { describeTool } from "./describe.js";
 
 export const APPROVAL_TTL_MS = 24 * 3_600_000;
 export const MSG_NOT_APPROVED = "کاربر این کار را تأیید نکرد.";
@@ -26,6 +27,7 @@ const toApproval = (r: ApprovalRow): Approval => ({
   botName: r.bot_name,
   toolName: r.tool_name,
   input: JSON.parse(r.input) as unknown,
+  summary: describeTool(r.tool_name, JSON.parse(r.input)),
   reason: r.reason,
   state: r.state,
   decidedByChannel: r.decided_by_channel,

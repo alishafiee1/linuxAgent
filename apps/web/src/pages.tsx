@@ -6,6 +6,26 @@ import { useT } from "./i18n";
 import { DevicesSection } from "./pagesExt";
 import { PendingRequests } from "./requests";
 
+/** Plain words first; the exact input stays one click away for anyone who wants to check it. */
+export function ApprovalDetails({ summary, toolName, input }: { summary?: string; toolName: string; input: unknown }) {
+  const { t } = useT();
+  const raw = JSON.stringify(input, null, 2);
+  if (!summary) return <pre>{raw}</pre>;
+  return (
+    <>
+      <div className="approval-summary" dir="auto">
+        {summary}
+      </div>
+      <details className="approval-raw">
+        <summary>{t.technicalDetails}</summary>
+        <pre dir="ltr">
+          {toolName} {raw}
+        </pre>
+      </details>
+    </>
+  );
+}
+
 export function ApprovalsPage({ activityTick }: { activityTick: number }) {
   const { t, locale } = useT();
   const [list, setList] = useState<Approval[]>([]);
@@ -47,9 +67,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
               <span className="spacer" />
               <span className="muted">{new Date(a.createdAt).toLocaleString(locale)}</span>
             </div>
-            <pre>
-              {a.toolName} {JSON.stringify(a.input, null, 2)}
-            </pre>
+            <ApprovalDetails summary={a.summary} toolName={a.toolName} input={a.input} />
             <div className="row approval-actions">
               <button className="primary" onClick={() => void decide(a.id, true)}>
                 <IconCheck size={16} />
