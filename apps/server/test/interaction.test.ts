@@ -305,3 +305,41 @@ describe("learning", () => {
     await t.orchestrator.idle();
   });
 });
+
+describe("time limit", () => {
+  function timed() {
+    const engine = new FakeEngine(() => [{ gate: "AskUserQuestion", input: { questions: [COLOR] } }, { gate: "Bash", input: { command: "sudo true" } }, ok()]);
+    const t = setup(engine);
+    const requests = new RequestService(t.db);
+    const d = (t.orchestrator as unknown as { d: { requests: RequestService; minuteMs: number } }).d;
+    d.requests = requests;
+    d.minuteMs = 40;
+    t.bots.update(t.bot.id, { maxMinutes: 1 });
+    return { t, requests };
+  }
+
+  it("does not count time spent waiting for the person", async () => {
+    const { t, requests } = timed();
+    const run = t.orchestrator.submit(t.conv.id, "x");
+    await tick(5);
+    await tick(150);
+    expect(t.orchestrator.get(run.id).state).toBe("waiting_approval");
+    requests.answer(requests.pending()[0]!.id, { answers: { [COLOR.question]: ["آبی"] } }, "panel");
+    await tick(5);
+    await tick(150);
+    expect(t.orchestrator.get(run.id).state).toBe("waiting_approval");
+    t.approvals.decide(t.approvals.list("pending")[0]!.id, true, "panel");
+    await t.orchestrator.idle();
+    expect(t.orchestrator.get(run.id).state).toBe("done");
+  });
+
+  it("still stops a bot that keeps working past its limit", async () => {
+    const hold = deferred();
+    const t = setup(new FakeEngine(() => [{ wait: hold.promise }, ok()]));
+    (t.orchestrator as unknown as { d: { minuteMs: number } }).d.minuteMs = 20;
+    t.bots.update(t.bot.id, { maxMinutes: 1 });
+    const run = t.orchestrator.submit(t.conv.id, "x");
+    await t.orchestrator.idle();
+    expect(t.orchestrator.get(run.id).reason).toBe("max_minutes");
+  });
+});
