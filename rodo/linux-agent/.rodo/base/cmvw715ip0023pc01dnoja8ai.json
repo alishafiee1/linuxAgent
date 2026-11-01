@@ -1,0 +1,68 @@
+{
+  "id": "cmvw715ip0023pc01dnoja8ai",
+  "rev": "76",
+  "updatedAt": 1793341052883,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/003-browser-and-vault/card.rodo.md",
+  "title": "مرورگر زنده و گاوصندوق",
+  "description": "## Goal\n\nهر بات مرورگر Chromium خودش را دارد و می‌تواند وارد سایت شود، فرم پر کند و از صفحه عکس بگیرد. صفحهٔ مرورگر را زنده در پنل می‌بینید و می‌توانید خودتان لاگین کنید یا فیلدی را پر کنید. رمزها در گاوصندوقی جدا و رمزنگاری‌شده نگه داشته می‌شوند. بات فقط اسم رمز را می‌داند و خود رمز را هیچ‌وقت نمی‌بیند.\n\n## Why\n\nخیلی از کارهای واقعی در سایت‌ها انجام می‌شوند، و رمزها نباید دست بات بیفتند.",
+  "status": "todo",
+  "list": "شروع",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "medium",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [],
+    "forbidden": []
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvw715jd0025pc0133nc90cv",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/003-browser-and-vault/simple.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/003-browser-and-vault/simple.md",
+    "hash": "sha256:10f1164d52d964b9fd7343e4529b7ccc15407b9617af8a8e9e2d135c22d8ed4f",
+    "updatedAt": 1793438591349
+  },
+  "fieldRevs": {
+    "refs": "74",
+    "test": "73",
+    "dueAt": "73",
+    "hours": "73",
+    "scope": "73",
+    "title": "73",
+    "locked": "73",
+    "status": "73",
+    "startAt": "73",
+    "archived": "73",
+    "priority": "75",
+    "rodoPath": "73",
+    "financial": "73",
+    "simpleDoc": "76",
+    "coverColor": "73",
+    "description": "75"
+  }
+}

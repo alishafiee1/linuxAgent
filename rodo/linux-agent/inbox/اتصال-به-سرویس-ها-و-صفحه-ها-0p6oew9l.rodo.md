@@ -1,0 +1,20 @@
+---
+schemaVersion: 2
+id: cmvu8nska0377mk010p6oew9l
+title: اتصال به سرویس‌ها و صفحه‌ها
+status: todo
+priority: medium
+updatedAt: 1793316702415
+---
+
+## Goal
+
+بات‌ها به Gmail، تقویم گوگل و GitHub وصل می‌شوند. ایمیل و پیام همیشه اول به‌صورت پیش‌نویس به شما نشان داده می‌شوند. بات‌ها می‌توانند گزارش یا داشبورد قابل اشتراک هم به شکل «صفحه» بسازند و بعداً به‌روزش کنند.
+
+## Why
+
+کار مستقیم با سرویس‌هایی که هر روز استفاده می‌کنید، با خیال راحت.
+
+## Refs
+
+- [توضیح ساده](/rodo/linux-agent/cycles/004-connectors-and-pages/simple.md) <!-- rodo:ref_cmvu8nskx0379mk01n18rvpwq -->

@@ -1,0 +1,248 @@
+{
+  "id": "cmvw714t5000fpc01mspdflhq",
+  "rev": "68",
+  "updatedAt": 1793436830020,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/001-core-mvp/card.rodo.md",
+  "title": "هستهٔ MVP: پنل، بات، چت، اجرای پس‌زمینه، تأیید",
+  "description": "پنل وب با ورود دومرحله‌ای، ساخت بات، چت زنده، اجرای پس‌زمینه که با بستن مرورگر قطع نمی‌شود، تأیید کارهای حساس از پنل، بله و تلگرام، و نمایش مصرف. جزئیات در spec.md و design.md.\n\n## Progress notes\n\n- Updated: 2026-10-31\n- Done: پروکسی و kill switch روی hermes. کد سرور و رابط وب، ۴۰ تست، اسکریپت‌های استقرار. نصب روی hermes انجام شد: `cwp.service` بالاست، ورود Claude برای agent درست است، کاربر پنل ساخته شد، گواهی و nginx برای agent.roditeam.ir فعال است و سایت از بیرون جواب می‌دهد.\n- Remaining: اتصال دوبارهٔ پروژه به برد: توکن این دستگاه اجازهٔ برد قبلی را ندارد و کد اتصال تازه از وب‌سایت برد لازم است؛ کارت‌ها شناسهٔ برد را هم از دست داده‌اند، پس پیش از همگام‌سازی باید جلوی ساخته شدن کارت تکراری گرفته شود. توکن تلگرام مسعود اشتباه ذخیره شده و باید دوباره وارد شود. آزمون واقعی بله و تلگرام، اعمال پروکسی از پنل و سناریوی «لپ‌تاپ خاموش». push به GitHub منتظر دسترسی Masoud-rmz به مخزن است.\n- Verified: آزمون Playwright روی نمونهٔ جدا: ورود، بات‌ها، چت زنده، تأیید و رد، ریلود، توقف و ادامه، فایل‌ها، مصرف، تنظیمات، دو زبان، گوشی و تبلت. تست‌های سرور ✓ (40). طراحی جدید رابط با اصلاح‌ها ادغام و نصب شد. بازبینی دوم روی نمونهٔ جدا با دو اصلاح تازه: ۱۳۶۶ و ۳۷۵ پیکسل، دو زبان، روشن و تیره، تأیید و رد، خطای توقف و ادامه ✓؛ typecheck و lint ✓. چهار تست قدیمی تأیید و رد و یک تست گفت‌وگوی تازه در اسکریپت کامل رد شدند و با تست دقیق‌تر ✓ شدند.",
+  "status": "in_progress",
+  "list": "کارها",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "high",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [
+      "apps/server/",
+      "apps/web/",
+      "packages/shared/",
+      "deploy/",
+      "root workspace config (package.json, pnpm-workspace.yaml, tsconfig)",
+      "rodo/linux-agent/ docs of this cycle and current docs"
+    ],
+    "forbidden": [
+      "the BaleBot repository and its server services",
+      "the hermes-gateway.service and Hermes Agent files inside the hermes container",
+      "any change on the host except one nginx server block and certificate for agent.roditeam.ir",
+      "routines, browser, vault, connectors (later cycles)"
+    ]
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvw714ui000hpc01waxdnul2",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/001-core-mvp/simple.md"
+    },
+    {
+      "id": "cmvw714uu000jpc01y37f1ktf",
+      "title": "سند فنی",
+      "path": "/rodo/linux-agent/cycles/001-core-mvp/spec.md"
+    },
+    {
+      "id": "cmvw714uy000lpc016wfm7ttz",
+      "title": "طراحی",
+      "path": "/rodo/linux-agent/cycles/001-core-mvp/design.md"
+    },
+    {
+      "id": "cmvw714v3000npc01xi4873qw",
+      "title": "معماری",
+      "path": "/rodo/linux-agent/project/architecture.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [
+    {
+      "id": "cmvw714wp000ppc01uzljgmaj",
+      "title": "قدم‌ها",
+      "rev": "50",
+      "items": [
+        {
+          "id": "cmvw714x8000rpc01psbjcb37",
+          "title": "اسکلت مونوریپو pnpm (server، web، shared) با lint، typecheck و vitest که پاس شوند",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "51"
+        },
+        {
+          "id": "cmvw714y0000tpc01criam8un",
+          "title": "پروکسی sing-box و kill switch برای کانتینر hermes، و بررسی دسترسی به Anthropic و تلگرام (R18)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "52"
+        },
+        {
+          "id": "cmvw714yg000vpc010x23m6tu",
+          "title": "اسکریپت آماده‌سازی داخل کانتینر hermes: کاربرهای `panel` و `agent`، Node 22 و Claude Code؛ `claude` با اشتراک وارد شود و hermes-gateway سالم بماند",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "53"
+        },
+        {
+          "id": "cmvw714z0000xpc01fovwpv33",
+          "title": "دیتابیس SQLite و migration جدول‌ها (R14). تست migration پاس شود",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "54"
+        },
+        {
+          "id": "cmvw714zg000zpc01wngrulqw",
+          "title": "ورود: رمز و TOTP با کوکی امن (R1–R2). تست ورود درست، غلط و قفل شدن پاس شود",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "55"
+        },
+        {
+          "id": "cmvw714zy0011pc0118pw7x18",
+          "title": "مدیریت بات‌ها: ساخت، ویرایش و حذف، با پوشهٔ هر بات (R3–R4)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "56"
+        },
+        {
+          "id": "cmvw7150f0013pc01wnm3i5lg",
+          "title": "هماهنگ‌کننده: صف، سقف هم‌زمانی، سقف نوبت و زمان، و اجرای Agent SDK (R5–R9)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "57"
+        },
+        {
+          "id": "cmvw7150v0015pc017vbwua52",
+          "title": "استریم رویدادها با SSE و پخش دوباره بعد از رفرش (R6)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "58"
+        },
+        {
+          "id": "cmvw7151d0017pc01ft39bgdu",
+          "title": "تأیید: دسته‌بندی ابزارها، canUseTool، صف تأیید در پنل (R10–R11)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "59"
+        },
+        {
+          "id": "cmvw7151s0019pc01hjyj5h3d",
+          "title": "تنظیم توکن بله و تلگرام در پنل، و اعلان و تأیید با دکمه (R12)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "60"
+        },
+        {
+          "id": "cmvw71528001bpc014q4vubmm",
+          "title": "رابط دوزبانهٔ فارسی (راست‌به‌چپ) و انگلیسی",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "61"
+        },
+        {
+          "id": "cmvw7152w001dpc012ditg9z4",
+          "title": "صفحهٔ مصرف و حالت «منتظر سقف اشتراک» با ادامهٔ خودکار (R13)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "62"
+        },
+        {
+          "id": "cmvw7153l001fpc01rzr88ubc",
+          "title": "مرورگر فایل فقط‌خواندنی و دانلود (R15)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "63"
+        },
+        {
+          "id": "cmvw7154j001hpc0176424szm",
+          "title": "بخش پروکسی در تنظیمات: لینک یا سابسکریپشن، اعمال کانفیگ و نمایش وضعیت اتصال (R18–R20)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "64"
+        },
+        {
+          "id": "cmvw7155j001jpc01f037b1d0",
+          "title": "systemd، nginx و گواهی برای agent.roditeam.ir، پشتیبان روزانهٔ دیتابیس، snapshot کانتینر و سند استقرار (R16–R17)",
+          "isDone": true,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "65"
+        },
+        {
+          "id": "cmvw7156k001lpc01x7mrevyb",
+          "title": "آزمون دستی سناریوی «لپ‌تاپ خاموش» از simple.md روی سرور",
+          "isDone": false,
+          "assignee": null,
+          "minutes": 0,
+          "kind": "task",
+          "rev": "66"
+        }
+      ]
+    }
+  ],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/001-core-mvp/simple.md",
+    "hash": "sha256:19526e7a93780b0040b68cb97c4c080f22c090cd07986de8a52f471535e4f6e2",
+    "updatedAt": 1793438590939
+  },
+  "fieldRevs": {
+    "refs": "48",
+    "test": "44",
+    "dueAt": "44",
+    "hours": "44",
+    "scope": "49",
+    "title": "44",
+    "locked": "44",
+    "status": "68",
+    "startAt": "44",
+    "archived": "44",
+    "priority": "49",
+    "rodoPath": "44",
+    "financial": "44",
+    "simpleDoc": "67",
+    "checklists": "66",
+    "coverColor": "44",
+    "description": "49"
+  }
+}

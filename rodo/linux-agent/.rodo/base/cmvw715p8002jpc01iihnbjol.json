@@ -1,0 +1,68 @@
+{
+  "id": "cmvw715p8002jpc01iihnbjol",
+  "rev": "84",
+  "updatedAt": 1793341055254,
+  "archived": false,
+  "deleted": false,
+  "rodoPath": "cycles/005-bot-collaboration/card.rodo.md",
+  "title": "همکاری بات‌ها",
+  "description": "## Goal\n\nبات‌ها می‌توانند به هم پیام بدهند و بخشی از کار را به بات دیگر بسپارند. مثلاً بات پژوهش نتیجه را به بات گزارش می‌دهد.\n\n## Why\n\nهر بات در کار خودش تخصص دارد و کارهای بزرگ بین آن‌ها تقسیم می‌شود.",
+  "status": "todo",
+  "list": "شروع",
+  "statusReason": null,
+  "blockerType": null,
+  "priority": "medium",
+  "coverColor": null,
+  "startAt": null,
+  "dueAt": null,
+  "hours": null,
+  "financial": {
+    "type": "none",
+    "amount": 0,
+    "category": "general",
+    "date": null
+  },
+  "scope": {
+    "allowed": [],
+    "forbidden": []
+  },
+  "test": {
+    "adapter": null,
+    "command": null
+  },
+  "members": [],
+  "labels": [],
+  "locked": false,
+  "refs": [
+    {
+      "id": "cmvw715pu002lpc01zqu2kqnz",
+      "title": "توضیح ساده",
+      "path": "/rodo/linux-agent/cycles/005-bot-collaboration/simple.md"
+    }
+  ],
+  "decisions": [],
+  "checklists": [],
+  "simpleDoc": {
+    "path": "/rodo/linux-agent/cycles/005-bot-collaboration/simple.md",
+    "hash": "sha256:a51f500954a293b90ccbb99c7b6a23b5e4cb210432343f78e258a7b95263f17a",
+    "updatedAt": 1793438591606
+  },
+  "fieldRevs": {
+    "refs": "82",
+    "test": "81",
+    "dueAt": "81",
+    "hours": "81",
+    "scope": "81",
+    "title": "81",
+    "locked": "81",
+    "status": "81",
+    "startAt": "81",
+    "archived": "81",
+    "priority": "83",
+    "rodoPath": "81",
+    "financial": "81",
+    "simpleDoc": "84",
+    "coverColor": "81",
+    "description": "83"
+  }
+}
