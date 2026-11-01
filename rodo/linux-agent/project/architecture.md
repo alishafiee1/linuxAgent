@@ -27,6 +27,10 @@
 | اتصال‌ها | REST گوگل و GitHub | `apps/server/src/connectors.ts` | بدون وابستگی اضافه |
 | ابزارهای پنل | سرور MCP داخل همان پروسه | `apps/server/src/panelTools.ts` | سپردن کار، انتشار صفحه، اتصال‌ها و پل با یک مسیر و یک دروازهٔ تأیید |
 | پل کامپیوتر شخصی | اسکریپت Node بدون وابستگی | `deploy/desktop-bridge/`، `apps/server/src/bridge.ts` | فقط به بیرون وصل می‌شود و چیزی را باز نمی‌کند |
+| درخواست از کاربر | پرسش، اتصال و تحویل مرورگر با یک مسیر | `apps/server/src/requests.ts` | هر کانالی جواب بدهد، اولین جواب برنده است |
+| اتصال‌ها | فهرست سرویس‌ها و `call_api` | `apps/server/src/platforms.ts` | کلید پیش پنل می‌ماند و بات آن را نمی‌بیند |
+| یادگیری | کار شبانه با مدل کوچک | `apps/server/src/learning.ts` | حافظهٔ مشترک خودکار به‌روز می‌ماند |
+| مهارت‌های آماده | فایل‌های SKILL.md | `deploy/skills/` | با نصب فقط اگر نباشند کپی می‌شوند |
 | استقرار | اسکریپت آماده‌سازی hermes، systemd، Incus proxy device و nginx | `deploy/` | همان الگوی BaleBot |
 | پروکسی و kill switch | sing-box (TUN) داخل hermes، ACL شبکهٔ Incus روی میزبان | `deploy/proxy/` | فقط hermes تحت تأثیر است و با قطع پروکسی اینترنتش قطع می‌شود |
 
@@ -45,7 +49,7 @@
 ## تست
 
 - تست واحد و یکپارچگی: `vitest` در `apps/server/test/` (دستور `pnpm test`). موتور در تست‌ها با `FakeEngine` جایگزین می‌شود.
-- تست پذیرش (اختیاری، پیشنهادی): `playwright-bdd`. سناریوها در `rodo/linux-agent/cycles/*/acceptance.feature` قرار می‌گیرند.
+- تست سراسری: `pnpm e2e` در `apps/server/e2e/`، با مرورگر واقعی و موتور ساختگی. به نسخهٔ ساخته‌شدهٔ رابط وب و Chromium نیاز دارد.
 
 ## قواعدی که همه باید بدانند
 

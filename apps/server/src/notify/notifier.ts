@@ -169,7 +169,7 @@ export class Notifier {
     const confirmed = draft["__confirmed"] ?? [];
     const complete = qs.every((q) => draft[q.question]?.length && (!q.multiSelect || confirmed.includes(q.question)));
     if (!complete) return;
-    const { __confirmed: _ignored, ...answers } = draft;
+    const answers = Object.fromEntries(Object.entries(draft).filter(([k]) => k !== "__confirmed"));
     this.requests!.answer(r.id, { answers }, channel);
   }
 
