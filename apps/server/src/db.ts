@@ -164,6 +164,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE routines ADD COLUMN deliver TEXT NOT NULL DEFAULT '["bale","telegram"]';
   UPDATE routines SET deliver = '[]' WHERE notify = 0;
   `,
+  `
+  ALTER TABLE bots ADD COLUMN effort TEXT;
+  ALTER TABLE bots ADD COLUMN avatar INTEGER;
+  `,
 ];
 
 export function openDb(path: string): Db {

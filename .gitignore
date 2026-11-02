@@ -11,3 +11,6 @@ docs/linuxAgent-redesign-*
 
 # RODO: local state (and, once a board is bound, card files: they live on the board)
 rodo/**/*.rodo.md
+
+# Code map (generated)
+graphify-out/

@@ -1,10 +1,12 @@
 import type { Bot, Me, ProxyStatus, PublicSettings, UiLanguage } from "@linux-agent/shared";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ApprovalBadge, usePending } from "./approvalPop";
 import { api, ApiError } from "./api";
+import { BotAvatar } from "./avatars";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
 import { ConnectionsPage } from "./connections";
-import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
 import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
@@ -45,6 +47,35 @@ function useLanguage(): [UiLanguage, (l: UiLanguage) => void] {
     }
   }, [lang]);
   return [lang, setLang];
+}
+
+type Theme = "light" | "dark";
+
+/** Follows the system until the user picks one; the pick is kept in this browser only. */
+function useTheme(): [Theme, () => void] {
+  const system = () => (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem("cwp.theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {
+      // private mode
+    }
+    return system();
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  const toggle = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try {
+      localStorage.setItem("cwp.theme", next);
+    } catch {
+      // private mode
+    }
+  };
+  return [theme, toggle];
 }
 
 export function App() {
@@ -141,6 +172,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [menu, setMenu] = useState<{ bot: Bot; x: number; y: number } | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [openConversation, setOpenConversation] = useState<string | null>(null);
+  const [theme, toggleTheme] = useTheme();
+  const { byBot, reload: reloadPending } = usePending(activityTick);
 
   const loadBots = useCallback(async () => {
     const list = await api.get<Bot[]>("/api/bots");
@@ -236,6 +269,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </button>
         )}
         <ProxyPill proxy={status?.proxy ?? null} />
+        <button className="ghost icon-btn" aria-label={t.themeToggle} title={t.themeToggle} onClick={toggleTheme}>
+          {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+        </button>
         <button
           className="ghost"
           onClick={() => {
@@ -269,7 +305,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 setMenu({ bot: b, x: e.clientX, y: e.clientY });
               }}
             >
-              <span className="avatar">{b.name.slice(0, 1).toUpperCase()}</span>
+              <BotAvatar
+                bot={b}
+                busy={(byBot[b.id]?.length ?? 0) > 0}
+                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => { setView("approvals"); setDrawer(false); }} />}
+              />
               <span className="bot-name">{b.name}</span>
             </button>
             <button
@@ -296,7 +336,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         {status?.lowDiskMessage && <div className="banner warn">{status.lowDiskMessage}</div>}
         {view === "chat" &&
           (bot ? (
-            <Chat key={bot.id} bot={bot} activityTick={activityTick} initialConversation={openConversation} />
+            <Chat
+              key={bot.id}
+              bot={bot}
+              activityTick={activityTick}
+              initialConversation={openConversation}
+              onBotChanged={() => void loadBots()}
+              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => setView("approvals")} />}
+            />
           ) : (
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}

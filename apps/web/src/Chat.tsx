@@ -1,10 +1,12 @@
 import type { Bot, ChatFile, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type ReactNode, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
 import { currentActivity, formatElapsed } from "./activity";
 import { api } from "./api";
+import { BotAvatar } from "./avatars";
 import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
+import { ModelChips } from "./modelChips";
 import { ApprovalDetails } from "./pages";
 import { RequestCard } from "./requests";
 import { FileCard, UploadTray, useLeaveGuard, useUploads } from "./uploads";
@@ -22,7 +24,7 @@ const STATE_ICONS: Record<string, (p: IconProps) => ReturnType<typeof IconBot>> 
   cancelled: IconStop,
 };
 
-export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; activityTick: number; initialConversation?: string | null }) {
+export function Chat({ bot, activityTick, initialConversation, onBotChanged, headBadge }: { bot: Bot; activityTick: number; initialConversation?: string | null; onBotChanged?: () => void; headBadge?: ReactNode }) {
   const { t } = useT();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [convId, setConvId] = useState<string | null>(initialConversation ?? null);
@@ -127,7 +129,7 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
   return (
     <div className="chat">
       <div className="chat-head">
-        <span className="avatar">{bot.name.slice(0, 1).toUpperCase()}</span>
+        <BotAvatar bot={bot} size="lg" badge={headBadge} />
         <strong>{bot.name}</strong>
         <span className="spacer" />
         <select value={convId ?? ""} onChange={(e) => setConvId(e.target.value || null)}>
@@ -164,6 +166,7 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
+        <ModelChips bot={bot} onChanged={() => onBotChanged?.()} />
         <UploadTray items={uploads.items} onRemove={uploads.remove} onRetry={uploads.retry} />
         <form onSubmit={send}>
           <input

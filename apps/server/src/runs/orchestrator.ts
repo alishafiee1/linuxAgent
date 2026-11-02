@@ -424,6 +424,7 @@ export class Orchestrator {
         additionalDirectories: [this.d.bots.botDir(bot)],
         systemPromptAppend: this.systemPromptFor(bot),
         model: bot.model ?? this.d.settings.defaultModel(),
+        effort: bot.effort ?? undefined,
         allowedTools: bot.allowedTools,
         maxTurns: bot.maxTurns,
         canUseTool: gate,

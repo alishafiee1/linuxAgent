@@ -126,6 +126,7 @@ export class ClaudeAgentEngine implements Engine {
         additionalDirectories: o.additionalDirectories,
         resume: o.sessionId ?? undefined,
         model: o.model,
+        ...(o.effort ? { effort: o.effort } : {}),
         maxTurns: o.maxTurns,
         // allowedTools is deliberately NOT passed: SDK allow-lists skip canUseTool. The gate enforces it instead.
         permissionMode: "default",

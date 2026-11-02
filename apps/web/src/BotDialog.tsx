@@ -1,6 +1,8 @@
-import type { Bot, BotInput } from "@linux-agent/shared";
+import { AVATAR_COUNT, type Bot, type BotInput } from "@linux-agent/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "./api";
+import { BotAvatar } from "./avatars";
+import { IconRefresh } from "./icons";
 import { useT } from "./i18n";
 
 export function BotDialog({ bot, onClose, onSaved }: { bot: Bot | null; onClose: () => void; onSaved: (b: Bot) => void }) {
@@ -10,6 +12,7 @@ export function BotDialog({ bot, onClose, onSaved }: { bot: Bot | null; onClose:
     name: bot?.name ?? "",
     persona: bot?.persona ?? "",
     model: bot?.model ?? "",
+    avatar: bot?.avatar ?? 1 + Math.floor(Math.random() * AVATAR_COUNT),
     maxTurns: bot?.maxTurns ?? 50,
     maxMinutes: bot?.maxMinutes ?? 120,
     browser: bot?.browser ?? false,
@@ -34,6 +37,13 @@ export function BotDialog({ bot, onClose, onSaved }: { bot: Bot | null; onClose:
     <dialog ref={ref} onClose={onClose}>
       <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
         <h3 style={{ margin: 0 }}>{bot ? `${t.edit}: ${bot.name}` : t.newBot}</h3>
+        <div className="row avatar-pick">
+          <BotAvatar bot={{ avatar: form.avatar, name: form.name }} size="lg" />
+          <button type="button" onClick={() => setForm({ ...form, avatar: 1 + Math.floor(Math.random() * AVATAR_COUNT) })}>
+            <IconRefresh size={14} />
+            {t.newAvatar}
+          </button>
+        </div>
         <label>
           {t.botName}
           <input value={form.name} maxLength={40} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />

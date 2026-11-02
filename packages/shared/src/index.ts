@@ -14,12 +14,28 @@ export const ACTIVE_RUN_STATES: readonly RunState[] = ["queued", "running", "wai
 
 export type RunEndReason = "max_turns" | "max_minutes" | "engine_error" | "cancelled" | "restart" | null;
 
+/** How hard the model thinks. Null on a bot means the engine default and nothing is sent. */
+export const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
+export type Effort = (typeof EFFORT_LEVELS)[number];
+
+/** Avatars are numbered 1..AVATAR_COUNT (web: /avatars/NN.png). */
+export const AVATAR_COUNT = 70;
+
+/** Aliases the pinned Claude Code build understands; any other name can still be typed by hand. */
+export const MODEL_CHOICES = [
+  { id: "opus", name: "Opus" },
+  { id: "sonnet", name: "Sonnet" },
+  { id: "haiku", name: "Haiku" },
+] as const;
+
 export interface Bot {
   id: string;
   name: string;
   slug: string;
   persona: string;
   model: string | null;
+  effort: Effort | null;
+  avatar: number;
   allowedTools: string[] | null;
   maxTurns: number;
   maxMinutes: number;
@@ -31,6 +47,8 @@ export interface BotInput {
   name: string;
   persona?: string;
   model?: string | null;
+  effort?: Effort | null;
+  avatar?: number;
   allowedTools?: string[] | null;
   maxTurns?: number;
   maxMinutes?: number;
@@ -92,6 +110,7 @@ export type ApprovalChannel = "panel" | "bale" | "telegram" | "timeout";
 export interface Approval {
   id: string;
   runId: string;
+  botId: string;
   botName: string;
   toolName: string;
   input: unknown;

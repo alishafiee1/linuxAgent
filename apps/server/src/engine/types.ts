@@ -25,6 +25,8 @@ export interface EngineStartOptions {
   additionalDirectories: string[];
   systemPromptAppend: string;
   model: string;
+  /** Only set when the bot has a level; an engine that does not know the option must not be sent one. */
+  effort?: "low" | "medium" | "high" | "max";
   allowedTools: string[] | null;
   maxTurns: number;
   canUseTool: ToolGate;

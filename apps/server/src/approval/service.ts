@@ -18,12 +18,14 @@ interface ApprovalRow {
   decided_by_channel: ApprovalChannel | null;
   created_at: string;
   decided_at: string | null;
+  bot_id: string;
   bot_name: string;
 }
 
 const toApproval = (r: ApprovalRow): Approval => ({
   id: r.id,
   runId: r.run_id,
+  botId: r.bot_id,
   botName: r.bot_name,
   toolName: r.tool_name,
   input: JSON.parse(r.input) as unknown,
@@ -35,7 +37,7 @@ const toApproval = (r: ApprovalRow): Approval => ({
   decidedAt: r.decided_at,
 });
 
-const SELECT = `SELECT a.*, b.name AS bot_name FROM approvals a
+const SELECT = `SELECT a.*, b.id AS bot_id, b.name AS bot_name FROM approvals a
   JOIN runs r ON r.id = a.run_id JOIN conversations c ON c.id = r.conversation_id JOIN bots b ON b.id = c.bot_id`;
 
 export interface ApprovalListener {

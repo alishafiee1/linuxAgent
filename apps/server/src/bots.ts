@@ -1,4 +1,4 @@
-import type { Bot, BotInput, Conversation } from "@linux-agent/shared";
+import type { Bot, BotInput, Conversation, Effort } from "@linux-agent/shared";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
@@ -16,6 +16,9 @@ export class HttpError extends Error {
   }
 }
 
+/** Same number as AVATAR_COUNT in packages/shared; the server cannot import runtime values from there. A test keeps them equal. */
+export const AVATAR_COUNT = 70;
+
 export const MSG_BOT_BUSY = "این بات در حال کار است؛ اول اجرا را متوقف کنید.";
 
 interface BotRow {
@@ -24,11 +27,20 @@ interface BotRow {
   slug: string;
   persona: string;
   model: string | null;
+  effort: string | null;
+  avatar: number | null;
   allowed_tools: string | null;
   max_turns: number;
   max_minutes: number;
   browser: number;
   created_at: string;
+}
+
+/** A bot made before avatars existed keeps the same picture on every visit. */
+function stableAvatar(id: string): number {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return (h % AVATAR_COUNT) + 1;
 }
 
 const toBot = (r: BotRow): Bot => ({
@@ -37,6 +49,8 @@ const toBot = (r: BotRow): Bot => ({
   slug: r.slug,
   persona: r.persona,
   model: r.model,
+  effort: r.effort as Effort | null,
+  avatar: r.avatar ?? stableAvatar(r.id),
   allowedTools: r.allowed_tools ? (JSON.parse(r.allowed_tools) as string[]) : null,
   maxTurns: r.max_turns,
   maxMinutes: r.max_minutes,
@@ -121,8 +135,8 @@ export class BotService {
     const id = randomUUID();
     this.db
       .prepare(
-        `INSERT INTO bots (id, name, slug, persona, model, allowed_tools, max_turns, max_minutes, browser, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO bots (id, name, slug, persona, model, effort, avatar, allowed_tools, max_turns, max_minutes, browser, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -130,6 +144,8 @@ export class BotService {
         slug,
         input.persona ?? "",
         input.model ?? null,
+        input.effort ?? null,
+        input.avatar ?? 1 + Math.floor(Math.random() * AVATAR_COUNT),
         input.allowedTools ? JSON.stringify(input.allowedTools) : null,
         input.maxTurns ?? 50,
         input.maxMinutes ?? 120,
@@ -166,12 +182,14 @@ export class BotService {
       throw new HttpError(409, "name_taken", "باتی با این نام وجود دارد.");
     this.db
       .prepare(
-        `UPDATE bots SET name = ?, persona = ?, model = ?, allowed_tools = ?, max_turns = ?, max_minutes = ?, browser = ? WHERE id = ?`,
+        `UPDATE bots SET name = ?, persona = ?, model = ?, effort = ?, avatar = ?, allowed_tools = ?, max_turns = ?, max_minutes = ?, browser = ? WHERE id = ?`,
       )
       .run(
         name,
         input.persona ?? bot.persona,
         input.model !== undefined ? input.model : bot.model,
+        input.effort !== undefined ? input.effort : bot.effort,
+        input.avatar ?? bot.avatar,
         input.allowedTools !== undefined
           ? input.allowedTools
             ? JSON.stringify(input.allowedTools)

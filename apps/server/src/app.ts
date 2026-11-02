@@ -10,7 +10,7 @@ import { z } from "zod";
 import type { ApprovalService } from "./approval/service.js";
 import { MSG_ALREADY_DECIDED } from "./approval/service.js";
 import { MSG_BAD_LOGIN, MSG_LOCKED, SESSION_DAYS, type AuthService } from "./auth/service.js";
-import { HttpError, type BotService } from "./bots.js";
+import { AVATAR_COUNT, HttpError, type BotService } from "./bots.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
 import type { Notifier } from "./notify/notifier.js";
@@ -49,6 +49,8 @@ const botInput = z.object({
   name: z.string(),
   persona: z.string().max(10_000).optional(),
   model: z.string().max(100).nullable().optional(),
+  effort: z.enum(["low", "medium", "high", "max"]).nullable().optional(),
+  avatar: z.number().int().min(1).max(AVATAR_COUNT).optional(),
   allowedTools: z.array(z.string()).nullable().optional(),
   maxTurns: z.number().int().optional(),
   maxMinutes: z.number().int().optional(),
