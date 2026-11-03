@@ -27,6 +27,7 @@
 - [022 — ظاهر نرم، آواتار بات‌ها، نشان تأیید و انتخاب مدل](cycles/022-soft-theme-avatars-model/simple.md)
 - [023 — مدیریت چند اتصال پروکسی](cycles/023-proxy-connections/simple.md)
 - [024 — ترمیم خودکار پروکسی با ساب و اتصال‌های بعدی](cycles/024-proxy-auto-heal/simple.md)
+- [025 — نصب‌شدنی روی گوشی و اعلان فوری تأیید](cycles/025-pwa-push/simple.md)
 
 ## لغوشده
 

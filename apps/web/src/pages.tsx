@@ -5,6 +5,7 @@ import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, 
 import { useT } from "./i18n";
 import { DevicesSection } from "./pagesExt";
 import { ProxyPanel } from "./proxyPanel";
+import { PushPanel } from "./pushPanel";
 import { PendingRequests } from "./requests";
 
 /** Plain words first; the exact input stays one click away for anyone who wants to check it. */
@@ -446,6 +447,7 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
+      <PushPanel />
       <ProxyPanel proxy={proxy} onChanged={onSaved} />
       <DevicesSection />
     </div>

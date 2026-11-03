@@ -168,6 +168,15 @@ const MIGRATIONS: string[] = [
   ALTER TABLE bots ADD COLUMN effort TEXT;
   ALTER TABLE bots ADD COLUMN avatar INTEGER;
   `,
+  `
+  CREATE TABLE push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  `,
 ];
 
 export function openDb(path: string): Db {

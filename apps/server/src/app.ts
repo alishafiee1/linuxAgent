@@ -13,6 +13,7 @@ import { MSG_BAD_LOGIN, MSG_LOCKED, SESSION_DAYS, type AuthService } from "./aut
 import { AVATAR_COUNT, HttpError, type BotService } from "./bots.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
+import type { PushService } from "./push.js";
 import type { Notifier } from "./notify/notifier.js";
 import type { ProxyService } from "./proxy/service.js";
 import type { EventStore } from "./runs/events.js";
@@ -35,6 +36,7 @@ export interface AppDeps {
   events: EventStore;
   settings: SettingsStore;
   notifier: Notifier | null;
+  push?: PushService | null;
   proxy: ProxyService | null;
   ext?: ExtDeps;
 }
@@ -338,6 +340,25 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     if (input.bale !== undefined || input.telegram !== undefined) d.notifier?.reload();
     if (input.maxConcurrentRuns !== undefined) d.orchestrator.pump();
     return d.settings.publicView();
+  });
+  const pushSub = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
+  app.get("/api/push/key", async () => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    return { key: d.push.publicKey(), subscriptions: d.push.count() };
+  });
+  app.post("/api/push/subscribe", async (req) => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    d.push.subscribe(parse(pushSub, req.body), String(req.headers["user-agent"] ?? ""));
+    return { ok: true };
+  });
+  app.post("/api/push/unsubscribe", async (req) => {
+    d.push?.unsubscribe(parse(z.object({ endpoint: z.string() }), req.body).endpoint);
+    return { ok: true };
+  });
+  app.post("/api/push/test", async () => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    await d.push.notify("آزمایش اعلان", "اگر این را می‌بینید، اعلان فوری کار می‌کند.");
+    return { ok: true };
   });
   app.post<{ Params: { channel: string } }>("/api/settings/notify/:channel/test", async (req) => {
     const ch = req.params.channel;

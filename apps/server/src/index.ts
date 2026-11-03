@@ -19,6 +19,7 @@ import { RoutineService } from "./routines/service.js";
 import { UploadService } from "./uploads.js";
 import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
+import { PushService } from "./push.js";
 import { ProxyService } from "./proxy/service.js";
 import { EventStore } from "./runs/events.js";
 import { Orchestrator } from "./runs/orchestrator.js";
@@ -86,10 +87,12 @@ proxy.onChange((s) => {
 });
 
 notifier.attachRequests(requests, config.publicBaseUrl);
+const push = new PushService(db, settings, config.publicBaseUrl, undefined, log);
+notifier.attachPush(push);
 const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
 const routines = new RoutineService({ db, bots, orchestrator, notify: (text, channels) => notifier.notify(text, channels) });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, push, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
 
 orchestrator.recover();
 notifier.reload();
