@@ -332,7 +332,12 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       </aside>
 
       <main className="main">
-        {status?.proxy?.state === "disconnected" && <div className="banner bad">{t.proxyDown}</div>}
+        {status?.proxy?.state === "disconnected" && (
+          <div className="banner bad">
+            {t.proxyDown}
+            {status.proxy.reason && ` ${t.proxyReasons[status.proxy.reason]}`}
+          </div>
+        )}
         {status?.lowDiskMessage && <div className="banner warn">{status.lowDiskMessage}</div>}
         {view === "chat" &&
           (bot ? (

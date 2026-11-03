@@ -1,5 +1,6 @@
-import type { ProxyNode, ProxyStatus } from "@linux-agent/shared";
+import type { ProxyConnection, ProxyNode, ProxyStatus } from "@linux-agent/shared";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
@@ -12,6 +13,9 @@ export const MSG_NOT_ALLOWED_BY_KILLSWITCH =
 export const POLL_MS = 15_000;
 /** A slow proxy misses single probes, so only this many misses in a row count as disconnected. */
 export const MAX_PROBE_MISSES = 3;
+export const MAX_SAVED_LINKS = 20;
+export const FAILOVER_COOLDOWN_MS = 10 * 60_000;
+export const FAILOVER_WAIT_MS = 8_000;
 const PROXY_TYPES = new Set(["VLESS", "VMess", "Trojan", "Shadowsocks", "vless", "vmess", "trojan", "shadowsocks"]);
 
 export interface ProxyDeps {
@@ -23,6 +27,15 @@ export interface ProxyDeps {
   fetchFn?: typeof fetch;
   resolve?: (host: string) => Promise<string>;
   runHelper?: (cmd: string[], stdin: string) => Promise<{ code: number; stderr: string }>;
+  sleep?: (ms: number) => Promise<void>;
+  nowMs?: () => number;
+}
+
+interface SavedLink {
+  id: string;
+  name: string;
+  link: string;
+  addedAt: string;
 }
 
 function runProcess(cmd: string[], stdin: string): Promise<{ code: number; stderr: string }> {
@@ -42,7 +55,18 @@ function summary(l: ParsedLink): ProxyStatus["current"] {
 }
 
 export class ProxyService {
-  private status: ProxyStatus = { state: "unknown", latencyMs: null, current: null, subscriptionUrlSet: false, checkedAt: new Date(0).toISOString() };
+  private status: ProxyStatus = {
+    state: "unknown",
+    reason: null,
+    latencyMs: null,
+    current: null,
+    subscriptionUrlSet: false,
+    connectionCount: 0,
+    failover: { enabled: false, lastAt: null, lastResult: null },
+    checkedAt: new Date(0).toISOString(),
+  };
+  private failoverLast: { at: number | null; result: string | null } = { at: null, result: null };
+  private failing = false;
   private timer: NodeJS.Timeout | null = null;
   private listeners: ((s: ProxyStatus) => void)[] = [];
   private fetchFn: typeof fetch;
@@ -74,7 +98,172 @@ export class ProxyService {
         current = null;
       }
     }
-    return { ...this.status, current, subscriptionUrlSet: this.d.settings.get("proxy.subscription.secret") !== null };
+    return {
+      ...this.status,
+      current,
+      subscriptionUrlSet: this.d.settings.get("proxy.subscription.secret") !== null,
+      connectionCount: this.readSaved().length,
+      failover: {
+        enabled: this.failoverEnabled(),
+        lastAt: this.failoverLast.at === null ? null : new Date(this.failoverLast.at).toISOString(),
+        lastResult: this.failoverLast.result,
+      },
+    };
+  }
+
+  private now(): number {
+    return (this.d.nowMs ?? Date.now)();
+  }
+
+  private pause(ms: number): Promise<void> {
+    return (this.d.sleep ?? ((m: number) => new Promise<void>((r) => setTimeout(r, m))))(ms);
+  }
+
+  // --- saved connections (spec R1 to R6)
+
+  private readSaved(): SavedLink[] {
+    const raw = this.d.settings.get("proxy.links.secret");
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw) as SavedLink[];
+      return Array.isArray(list) ? list.filter((s) => s && typeof s.link === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private writeSaved(list: SavedLink[]): void {
+    this.d.settings.set("proxy.links.secret", list.length ? JSON.stringify(list) : null);
+  }
+
+  /** The link in use is always in the list, even when it was set before the list existed. */
+  private syncActive(): SavedLink[] {
+    const list = this.readSaved();
+    const active = this.d.settings.get("proxy.link.secret")?.trim();
+    if (active && !list.some((s) => s.link === active) && list.length < MAX_SAVED_LINKS) {
+      try {
+        const p = parseLink(active);
+        list.push({ id: randomUUID(), name: (p.remark || p.host).slice(0, 60), link: active, addedAt: new Date(this.now()).toISOString() });
+        this.writeSaved(list);
+      } catch {
+        // an unreadable active link stays out of the list
+      }
+    }
+    return list;
+  }
+
+  async listConnections(): Promise<ProxyConnection[]> {
+    const list = this.syncActive();
+    const active = this.d.settings.get("proxy.link.secret")?.trim();
+    const out: ProxyConnection[] = [];
+    for (const s of list) {
+      let p: ParsedLink;
+      try {
+        p = parseLink(s.link);
+      } catch {
+        continue;
+      }
+      const ip = await this.resolveHost(p.host).catch(() => null);
+      out.push({ id: s.id, name: s.name, scheme: p.scheme, host: p.host, port: p.port, remark: p.remark, ip, active: s.link === active, addedAt: s.addedAt });
+    }
+    return out;
+  }
+
+  async addConnection(raw: string, name?: string): Promise<ProxyConnection[]> {
+    let p: ParsedLink;
+    try {
+      p = parseLink(raw);
+    } catch (e) {
+      throw new HttpError(400, "bad_link", e instanceof LinkError ? `لینک نامعتبر است: ${e.message}` : "لینک نامعتبر است.");
+    }
+    const link = raw.trim();
+    const list = this.syncActive();
+    if (list.some((s) => s.link === link)) throw new HttpError(409, "duplicate", "این لینک قبلاً ذخیره شده است.");
+    if (list.length >= MAX_SAVED_LINKS) throw new HttpError(409, "too_many", `بیشتر از ${MAX_SAVED_LINKS} اتصال ذخیره نمی‌شود.`);
+    list.push({ id: randomUUID(), name: (name?.trim() || p.remark || p.host).slice(0, 60), link, addedAt: new Date(this.now()).toISOString() });
+    this.writeSaved(list);
+    return this.listConnections();
+  }
+
+  async renameConnection(id: string, name: string): Promise<ProxyConnection[]> {
+    const list = this.syncActive();
+    const item = list.find((s) => s.id === id);
+    if (!item) throw new HttpError(404, "no_connection", "این اتصال پیدا نشد.");
+    const clean = name.trim();
+    if (!clean) throw new HttpError(400, "bad_name", "نام نباید خالی باشد.");
+    item.name = clean.slice(0, 60);
+    this.writeSaved(list);
+    return this.listConnections();
+  }
+
+  async removeConnection(id: string): Promise<ProxyConnection[]> {
+    const list = this.syncActive();
+    const item = list.find((s) => s.id === id);
+    if (!item) throw new HttpError(404, "no_connection", "این اتصال پیدا نشد.");
+    if (item.link === this.d.settings.get("proxy.link.secret")?.trim())
+      throw new HttpError(409, "active", "اتصال فعال را نمی‌شود حذف کرد؛ اول یکی دیگر را فعال کنید.");
+    this.writeSaved(list.filter((s) => s.id !== id));
+    return this.listConnections();
+  }
+
+  async activateConnection(id: string): Promise<ProxyStatus> {
+    const item = this.syncActive().find((s) => s.id === id);
+    if (!item) throw new HttpError(404, "no_connection", "این اتصال پیدا نشد.");
+    return this.applyLink(item.link);
+  }
+
+  // --- failover (spec R8)
+
+  failoverEnabled(): boolean {
+    return this.d.settings.get("proxy.failover") === "1";
+  }
+
+  setFailover(enabled: boolean): ProxyStatus {
+    this.d.settings.set("proxy.failover", enabled ? "1" : null);
+    return this.current();
+  }
+
+  private async probeOnce(): Promise<boolean> {
+    try {
+      const { proxies } = await this.clash<{ proxies: Record<string, { type: string }> }>("/proxies");
+      const name = Object.keys(proxies).find((k) => PROXY_TYPES.has(proxies[k]!.type));
+      if (!name) return false;
+      await this.clash(`/proxies/${encodeURIComponent(name)}/delay?timeout=10000&url=${encodeURIComponent("https://www.gstatic.com/generate_204")}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Tries every other saved link in order and stops at the first that answers. A link the kill switch does not allow is skipped. */
+  async failover(): Promise<void> {
+    if (this.failing) return;
+    this.failing = true;
+    this.failoverLast.at = this.now();
+    let result = "no_other_connection";
+    try {
+      const active = this.d.settings.get("proxy.link.secret")?.trim();
+      const others = this.syncActive().filter((s) => s.link !== active);
+      if (others.length) result = "none_worked";
+      for (const s of others) {
+        try {
+          await this.applyLink(s.link);
+        } catch {
+          continue;
+        }
+        await this.pause(FAILOVER_WAIT_MS);
+        if (await this.probeOnce()) {
+          result = `switched:${s.name}`;
+          this.probeMisses = 0;
+          break;
+        }
+      }
+    } finally {
+      this.failoverLast.result = result;
+      this.failing = false;
+    }
+    await this.check();
+    for (const l of this.listeners) l(this.current());
   }
 
   start(): void {
@@ -110,6 +299,7 @@ export class ProxyService {
     const prev = this.status.state;
     let state: ProxyStatus["state"];
     let latencyMs: number | null = null;
+    let reason: ProxyStatus["reason"] = null;
     try {
       const { proxies } = await this.clash<{ proxies: Record<string, { type: string }> }>("/proxies");
       const name = Object.keys(proxies).find((k) => PROXY_TYPES.has(proxies[k]!.type));
@@ -123,14 +313,18 @@ export class ProxyService {
         this.probeMisses++;
         state = this.probeMisses >= MAX_PROBE_MISSES ? "disconnected" : prev;
         latencyMs = this.status.latencyMs;
+        reason = "server_unreachable";
       }
     } catch {
       // sing-box itself is not answering: restarting (connecting) or down.
       state = prev === "connected" || prev === "connecting" ? "connecting" : "disconnected";
       if (this.status.state === "unknown") state = "unknown";
+      reason = "engine_down";
     }
-    this.status = { ...this.status, state, latencyMs, checkedAt: new Date().toISOString() };
+    this.status = { ...this.status, state, reason, latencyMs, checkedAt: new Date().toISOString() };
     if (state !== prev) for (const l of this.listeners) l(this.current());
+    const due = this.failoverLast.at === null || this.now() - this.failoverLast.at > FAILOVER_COOLDOWN_MS;
+    if (state === "disconnected" && reason === "server_unreachable" && this.failoverEnabled() && due && !this.failing) void this.failover();
     return this.current();
   }
 
@@ -158,7 +352,8 @@ export class ProxyService {
     if (r.code === 3) throw new HttpError(409, "not_allowed", MSG_NOT_ALLOWED_BY_KILLSWITCH);
     if (r.code !== 0) throw new HttpError(500, "apply_failed", `اعمال کانفیگ ناموفق بود: ${r.stderr.trim().slice(0, 300)}`);
     this.d.settings.set("proxy.link.secret", raw.trim());
-    this.status = { ...this.status, state: "connecting" };
+    this.syncActive();
+    this.status = { ...this.status, state: "connecting", reason: null };
     for (const l of this.listeners) l(this.current());
     setTimeout(() => void this.check(), 3000).unref?.();
     return this.current();

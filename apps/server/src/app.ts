@@ -364,6 +364,17 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     if (body.link) return p.applyLink(body.link);
     return p.current();
   });
+  app.get("/api/proxy/connections", async () => needProxy().listConnections());
+  app.post("/api/proxy/connections", async (req) => {
+    const b = parse(z.object({ link: z.string().max(5000), name: z.string().max(60).optional() }), req.body);
+    return needProxy().addConnection(b.link, b.name);
+  });
+  app.patch<{ Params: { id: string } }>("/api/proxy/connections/:id", async (req) =>
+    needProxy().renameConnection(req.params.id, parse(z.object({ name: z.string().max(60) }), req.body).name),
+  );
+  app.delete<{ Params: { id: string } }>("/api/proxy/connections/:id", async (req) => needProxy().removeConnection(req.params.id));
+  app.post<{ Params: { id: string } }>("/api/proxy/connections/:id/activate", async (req) => needProxy().activateConnection(req.params.id));
+  app.put("/api/proxy/failover", async (req) => needProxy().setFailover(parse(z.object({ enabled: z.boolean() }), req.body).enabled));
   app.get("/api/proxy/subscription/nodes", async () => needProxy().subscriptionNodes());
   app.post("/api/proxy/select", async (req) => needProxy().selectSubscriptionNode(parse(z.object({ index: z.number().int().min(0) }), req.body).index));
 

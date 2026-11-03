@@ -174,11 +174,30 @@ export type ProxyConnState = "connected" | "disconnected" | "connecting" | "unkn
 
 export interface ProxyStatus {
   state: ProxyConnState;
+  /** Why it is down: the proxy server does not answer, or sing-box itself is not running. */
+  reason: "server_unreachable" | "engine_down" | null;
   latencyMs: number | null;
   /** Never the full link: only what is safe to show. */
   current: { scheme: string; host: string; port: number; remark: string } | null;
   subscriptionUrlSet: boolean;
+  connectionCount: number;
+  /** lastResult: `switched:<name>`, `none_worked` or `no_other_connection`. */
+  failover: { enabled: boolean; lastAt: string | null; lastResult: string | null };
   checkedAt: string;
+}
+
+/** One saved proxy link, without the link itself. */
+export interface ProxyConnection {
+  id: string;
+  name: string;
+  scheme: string;
+  host: string;
+  port: number;
+  remark: string;
+  /** The resolved server address, which the host kill switch needs. Null when the name does not resolve. */
+  ip: string | null;
+  active: boolean;
+  addedAt: string;
 }
 
 export interface ProxyNode {

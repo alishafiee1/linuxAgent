@@ -2907,3 +2907,108 @@ button:active:not(:disabled) {
     flex: none;
   }
 }
+
+/* ---------- proxy connections (cycle 023) ---------- */
+.proxy-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.proxy-status {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.proxy-reason {
+  margin: 0;
+}
+
+.proxy-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conn-list {
+  display: grid;
+  gap: 8px;
+}
+
+.conn {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--surface-3);
+  box-shadow: 0 3px 8px var(--depth) inset;
+  border: 1px solid transparent;
+}
+
+.conn.active {
+  border-color: color-mix(in srgb, var(--good) 55%, transparent);
+  background: color-mix(in srgb, var(--good) 9%, var(--surface-3));
+}
+
+.conn-main {
+  min-width: 0;
+  flex: 1 1 220px;
+  display: grid;
+  gap: 2px;
+}
+
+.conn-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.conn-name {
+  overflow-wrap: anywhere;
+}
+
+.conn-badge {
+  display: inline-block;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--good);
+}
+
+.conn-addr {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.conn-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.proxy-hint {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--warn-strong) 12%, var(--surface-3));
+}
+
+.proxy-hint p {
+  margin: 0 0 6px;
+}
+
+.proxy-hint pre {
+  margin: 0;
+  overflow-x: auto;
+}

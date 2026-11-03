@@ -1,9 +1,10 @@
-import type { Approval, FileEntry, ProxyNode, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
+import type { Approval, FileEntry, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
-import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconGlobe, IconInbox, IconShield, IconSliders, IconX } from "./icons";
+import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconInbox, IconShield, IconSliders, IconX } from "./icons";
 import { useT } from "./i18n";
 import { DevicesSection } from "./pagesExt";
+import { ProxyPanel } from "./proxyPanel";
 import { PendingRequests } from "./requests";
 
 /** Plain words first; the exact input stays one click away for anyone who wants to check it. */
@@ -352,91 +353,6 @@ function ChannelForm({ name, label, current, onSaved }: { name: "bale" | "telegr
   );
 }
 
-function ProxySection({ proxy, onChanged }: { proxy: ProxyStatus | null; onChanged: () => void }) {
-  const { t } = useT();
-  const [link, setLink] = useState("");
-  const [sub, setSub] = useState("");
-  const [nodes, setNodes] = useState<ProxyNode[] | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const run = async (fn: () => Promise<unknown>, okText = t.saved) => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await fn();
-      setMsg({ ok: true, text: okText });
-      onChanged();
-    } catch (e) {
-      setMsg({ ok: false, text: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="card section">
-      <h3>
-        <IconGlobe size={16} />
-        {t.proxy}
-      </h3>
-      {proxy && (
-        <div className="row">
-          <span className="pill">
-            <span className={`dot ${proxy.state === "connected" ? "good" : proxy.state === "disconnected" ? "bad" : "warn"}`} />
-            {t[proxy.state]}
-            {proxy.latencyMs !== null && proxy.state === "connected" && ` · ${proxy.latencyMs} ${t.ms}`}
-          </span>
-          {proxy.current && (
-            <span className="muted" dir="ltr">
-              {t.current}: {proxy.current.scheme}://{proxy.current.host}:{proxy.current.port} {proxy.current.remark}
-            </span>
-          )}
-        </div>
-      )}
-      <label>
-        {t.proxyLink}
-        <textarea rows={2} dir="ltr" value={link} onChange={(e) => setLink(e.target.value)} />
-      </label>
-      <div className="row">
-        <button className="primary" disabled={busy || !link.trim()} onClick={() => void run(() => api.put("/api/proxy", { link }).then(() => setLink("")))}>
-          {t.apply}
-        </button>
-      </div>
-      <label>
-        {t.subscription}
-        <input dir="ltr" placeholder={proxy?.subscriptionUrlSet ? t.tokenKeep : "https://"} value={sub} onChange={(e) => setSub(e.target.value)} />
-      </label>
-      <div className="row">
-        <button disabled={busy || !sub.trim()} onClick={() => void run(() => api.put("/api/proxy", { subscriptionUrl: sub }).then(() => setSub("")))}>
-          {t.save}
-        </button>
-        <button disabled={busy || (!proxy?.subscriptionUrlSet && !sub)} onClick={() => void run(() => api.get<ProxyNode[]>("/api/proxy/subscription/nodes").then(setNodes), "")}>
-          {t.loadNodes}
-        </button>
-      </div>
-      {nodes && (
-        <table>
-          <tbody>
-            {nodes.map((n) => (
-              <tr key={n.index}>
-                <td>{n.remark}</td>
-                <td dir="ltr">
-                  {n.scheme}://{n.host}:{n.port}
-                </td>
-                <td>
-                  <button disabled={busy} onClick={() => void run(() => api.post("/api/proxy/select", { index: n.index }))}>
-                    {t.use}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {msg && msg.text && <div className={msg.ok ? "ok" : "err"}>{msg.text}</div>}
-    </div>
-  );
-}
-
 export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; onSaved: () => void }) {
   const { t, setLang } = useT();
   const [s, setS] = useState<PublicSettings | null>(null);
@@ -530,7 +446,7 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
-      <ProxySection proxy={proxy} onChanged={onSaved} />
+      <ProxyPanel proxy={proxy} onChanged={onSaved} />
       <DevicesSection />
     </div>
   );
