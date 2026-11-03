@@ -17,7 +17,7 @@ export class HttpError extends Error {
 }
 
 /** Same number as AVATAR_COUNT in packages/shared; the server cannot import runtime values from there. A test keeps them equal. */
-export const AVATAR_COUNT = 70;
+export const AVATAR_COUNT = 122;
 
 export const MSG_BOT_BUSY = "این بات در حال کار است؛ اول اجرا را متوقف کنید.";
 

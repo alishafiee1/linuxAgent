@@ -18,8 +18,8 @@ export type RunEndReason = "max_turns" | "max_minutes" | "engine_error" | "cance
 export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORT_LEVELS)[number];
 
-/** Avatars are numbered 1..AVATAR_COUNT (web: /avatars/NN.png). */
-export const AVATAR_COUNT = 70;
+/** Avatars are numbered 1..AVATAR_COUNT. 1..45 are /avatars/a01..a45.webp, the rest /avatars/b01..b77.webp. */
+export const AVATAR_COUNT = 122;
 
 /** Aliases the pinned Claude Code build understands; any other name can still be typed by hand. */
 export const MODEL_CHOICES = [
