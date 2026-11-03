@@ -1,6 +1,6 @@
 import { createSdkMcpServer, query, tool, type SDKMessage, type SpawnOptions, type SpawnedProcess } from "@anthropic-ai/claude-agent-sdk";
 import { spawn } from "node:child_process";
-import type { Engine, EngineEvent, EngineStartOptions, PanelTool } from "./types.js";
+import type { Engine, EngineEvent, EngineModel, EngineStartOptions, PanelTool } from "./types.js";
 
 // Only these variables cross into the agent process. Panel secrets (CWP_*) never do.
 const PASS_ENV = /^(CLAUDE|ANTHROPIC_BASE_URL$|ANTHROPIC_MODEL$|DEBUG$|PATH$|LANG$|LC_|TZ$|NODE_|USE_BUILTIN_RIPGREP$)/;
@@ -115,6 +115,33 @@ export class ClaudeAgentEngine implements Engine {
     private agentExec: string[] = [],
     private claudePath: string | null = null,
   ) {}
+
+  /** Asks Claude Code which models it offers. Nothing is sent to the model, so it costs no usage. */
+  async listModels(): Promise<EngineModel[]> {
+    const spawner = makeAgentSpawner(this.agentExec);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 60_000);
+    // A prompt stream that never yields keeps the process idle: only the control request is answered.
+    const idle = (async function* (): AsyncGenerator<never> {
+      await new Promise((_, rej) => ac.signal.addEventListener("abort", () => rej(new Error("timeout")), { once: true }));
+    })();
+    const q = query({
+      prompt: idle,
+      options: {
+        abortController: ac,
+        settingSources: [],
+        cwd: "/tmp",
+        ...(spawner ? { spawnClaudeCodeProcess: spawner } : {}),
+        ...(this.claudePath ? { pathToClaudeCodeExecutable: this.claudePath } : {}),
+      },
+    });
+    try {
+      return (await q.supportedModels()) as EngineModel[];
+    } finally {
+      clearTimeout(timer);
+      ac.abort();
+    }
+  }
 
   async *start(o: EngineStartOptions): AsyncIterable<EngineEvent> {
     const spawner = makeAgentSpawner(this.agentExec);

@@ -26,7 +26,7 @@ export interface EngineStartOptions {
   systemPromptAppend: string;
   model: string;
   /** Only set when the bot has a level; an engine that does not know the option must not be sent one. */
-  effort?: "low" | "medium" | "high" | "max";
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   allowedTools: string[] | null;
   maxTurns: number;
   canUseTool: ToolGate;
@@ -55,7 +55,17 @@ export type EngineEvent =
       errorKind: string | null;
     };
 
+/** One model as the engine reports it. */
+export interface EngineModel {
+  value: string;
+  displayName: string;
+  description: string;
+  supportedEffortLevels?: string[];
+}
+
 export interface Engine {
   readonly name: string;
   start(options: EngineStartOptions): AsyncIterable<EngineEvent>;
+  /** Models this engine can run, if it can say. */
+  listModels?(): Promise<EngineModel[]>;
 }

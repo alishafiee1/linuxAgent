@@ -19,6 +19,7 @@ import { RoutineService } from "./routines/service.js";
 import { UploadService } from "./uploads.js";
 import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
+import { ModelCatalogService } from "./models.js";
 import { PushService } from "./push.js";
 import { ProxyService } from "./proxy/service.js";
 import { EventStore } from "./runs/events.js";
@@ -60,9 +61,12 @@ const requests = new RequestService(db);
 const uploads = new UploadService(join(dirname(config.dbPath), "uploads-tmp"), agentFiles, config.workspaceDir, config.botsDir);
 const bridge = new BridgeService(db);
 
+const engine = new ClaudeAgentEngine(config.agentExec, config.claudePath);
+const models = new ModelCatalogService(settings, engine);
+
 const orchestrator: Orchestrator = new Orchestrator({
   db,
-  engine: new ClaudeAgentEngine(config.agentExec, config.claudePath),
+  engine,
   bots,
   approvals,
   events,
@@ -92,7 +96,7 @@ notifier.attachPush(push);
 const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
 const routines = new RoutineService({ db, bots, orchestrator, notify: (text, channels) => notifier.notify(text, channels) });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, push, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, push, models, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
 
 orchestrator.recover();
 notifier.reload();

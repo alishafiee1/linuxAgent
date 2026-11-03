@@ -3029,3 +3029,8 @@ button:active:not(:disabled) {
 
 /* The scrollbar belongs at the window edge, so the page is full width and only its content is centred. */
 .page { max-width: none; padding-inline: max(22px, calc((100% - 956px) / 2)); }
+
+/* ---------- model list refresh (cycle 027) ---------- */
+.opt-refresh { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; }
+.opt-refresh button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 12.5px; }
+.opt-refresh small { color: var(--text-2); font-size: 11.5px; }

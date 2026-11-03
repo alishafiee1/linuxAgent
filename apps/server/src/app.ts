@@ -13,6 +13,7 @@ import { MSG_BAD_LOGIN, MSG_LOCKED, SESSION_DAYS, type AuthService } from "./aut
 import { AVATAR_COUNT, HttpError, type BotService } from "./bots.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
+import type { ModelCatalogService } from "./models.js";
 import type { PushService } from "./push.js";
 import type { Notifier } from "./notify/notifier.js";
 import type { ProxyService } from "./proxy/service.js";
@@ -37,6 +38,7 @@ export interface AppDeps {
   settings: SettingsStore;
   notifier: Notifier | null;
   push?: PushService | null;
+  models?: ModelCatalogService | null;
   proxy: ProxyService | null;
   ext?: ExtDeps;
 }
@@ -51,7 +53,7 @@ const botInput = z.object({
   name: z.string(),
   persona: z.string().max(10_000).optional(),
   model: z.string().max(100).nullable().optional(),
-  effort: z.enum(["low", "medium", "high", "max"]).nullable().optional(),
+  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).nullable().optional(),
   avatar: z.number().int().min(1).max(AVATAR_COUNT).optional(),
   allowedTools: z.array(z.string()).nullable().optional(),
   maxTurns: z.number().int().optional(),
@@ -340,6 +342,14 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     if (input.bale !== undefined || input.telegram !== undefined) d.notifier?.reload();
     if (input.maxConcurrentRuns !== undefined) d.orchestrator.pump();
     return d.settings.publicView();
+  });
+  app.get("/api/models", async () => {
+    if (!d.models) throw new HttpError(501, "disabled", "فهرست مدل‌ها غیرفعال است.");
+    return d.models.get();
+  });
+  app.post("/api/models/refresh", async () => {
+    if (!d.models) throw new HttpError(501, "disabled", "فهرست مدل‌ها غیرفعال است.");
+    return d.models.refresh();
   });
   const pushSub = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
   app.get("/api/push/key", async () => {

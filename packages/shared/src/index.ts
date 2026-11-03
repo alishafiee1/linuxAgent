@@ -15,7 +15,7 @@ export const ACTIVE_RUN_STATES: readonly RunState[] = ["queued", "running", "wai
 export type RunEndReason = "max_turns" | "max_minutes" | "engine_error" | "cancelled" | "restart" | null;
 
 /** How hard the model thinks. Null on a bot means the engine default and nothing is sent. */
-export const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORT_LEVELS)[number];
 
 /** Avatars are numbered 1..AVATAR_COUNT (web: /avatars/NN.png). */
@@ -27,6 +27,25 @@ export const MODEL_CHOICES = [
   { id: "sonnet", name: "Sonnet" },
   { id: "haiku", name: "Haiku" },
 ] as const;
+
+/** A model the panel offers. `efforts` is empty when the model has no effort setting (Haiku). */
+export interface ModelOption {
+  id: string;
+  name: string;
+  /** e.g. "Opus 4.7", taken from Claude Code. */
+  version: string;
+  /** Claude Code's own English description; shown only when the panel has no Persian hint for the id. */
+  description: string;
+  efforts: Effort[];
+}
+
+export interface ModelCatalog {
+  models: ModelOption[];
+  /** Effort levels of the panel's default model. */
+  defaultEfforts: Effort[];
+  /** null until the list was refreshed once; then the built-in list is shown. */
+  updatedAt: string | null;
+}
 
 export interface Bot {
   id: string;
