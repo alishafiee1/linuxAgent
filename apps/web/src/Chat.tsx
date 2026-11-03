@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type Rea
 import { currentActivity, formatElapsed } from "./activity";
 import { api } from "./api";
 import { BotAvatar } from "./avatars";
-import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
+import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconGlobe, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
 import { ModelChips } from "./modelChips";
@@ -82,6 +82,8 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
     setConvId(c.id);
   };
 
+  const [research, setResearch] = useState(false);
+
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!text.trim() && !uploads.ready.length) return;
@@ -95,7 +97,8 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
         await loadConversations();
         setConvId(id);
       }
-      await api.post(`/api/conversations/${id}/messages`, { text, attachments: uploads.ready });
+      await api.post(`/api/conversations/${id}/messages`, { text, attachments: uploads.ready, research });
+      setResearch(false);
       setText("");
       uploads.clear();
       stick.current = true;
@@ -182,6 +185,10 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
           />
           <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
             <IconArrowUp size={16} />
+          </button>
+          <button type="button" className={`ghost research-btn${research ? " on" : ""}`} aria-pressed={research} title={t.researchHint} onClick={() => setResearch(!research)}>
+            <IconGlobe size={15} />
+            {t.research}
           </button>
           <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
@@ -345,6 +352,7 @@ function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged
             return (
               <div key={e.seq} className="msg">
                 <div className="bubble user">
+                  {p.research ? <div className="research-tag"><IconGlobe size={12} />{t.research}</div> : null}
                   {p.text ? <div dir="auto">{String(p.text)}</div> : null}
                   {(p.files as ChatFile[] | undefined)?.map((f) => <FileCard key={f.path} file={f} />)}
                 </div>

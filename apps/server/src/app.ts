@@ -191,9 +191,9 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     runs: d.orchestrator.listForConversation(req.params.id),
   }));
   app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req) => {
-    const { text, attachments } = parse(z.object({ text: z.string().max(100_000), attachments: z.array(z.string()).max(20).optional() }), req.body);
+    const { text, attachments, research } = parse(z.object({ text: z.string().max(100_000), attachments: z.array(z.string()).max(20).optional(), research: z.boolean().optional() }), req.body);
     const files = attachments?.length ? (d.ext?.uploads.take(attachments) ?? []) : [];
-    const run = d.orchestrator.submit(req.params.id, text, { files });
+    const run = d.orchestrator.submit(req.params.id, text, { files, research });
     return { runId: run.id };
   });
   app.get<{ Params: { id: string } }>("/api/runs/:id", async (req) => d.orchestrator.get(req.params.id));
