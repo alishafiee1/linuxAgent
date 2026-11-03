@@ -51,6 +51,8 @@ export function ProxyPanel({ proxy, onChanged }: { proxy: ProxyStatus | null; on
 
   const dot = proxy ? (proxy.state === "connected" ? "good" : proxy.state === "disconnected" ? "bad" : "warn") : "warn";
   const last = proxy?.failover.lastResult ?? null;
+  const sync = proxy?.subscriptionSync.lastResult ?? null;
+  const syncText = !sync ? null : sync.startsWith("ok:") ? t.proxySyncOk.replace("{added}", sync.split(":")[1]!).replace("{removed}", sync.split(":")[2]!) : t.proxySyncFail;
   const lastText = !last ? null : last.startsWith("switched:") ? t.proxyFailoverSwitched.replace("{name}", last.slice("switched:".length)) : t.proxyFailoverResults[last];
 
   return (
@@ -101,6 +103,7 @@ export function ProxyPanel({ proxy, onChanged }: { proxy: ProxyStatus | null; on
                 <div className="conn-title">
                   <strong className="conn-name">{c.name}</strong>
                   {c.active && <span className="conn-badge">{t.proxyActive}</span>}
+                  {c.fromSubscription && <span className="conn-tag">{t.proxyFromSub}</span>}
                 </div>
               )}
               <div className="conn-addr" dir="ltr">
@@ -170,10 +173,14 @@ export function ProxyPanel({ proxy, onChanged }: { proxy: ProxyStatus | null; on
         <button disabled={busy || !sub.trim()} onClick={() => void run(() => api.put("/api/proxy", { subscriptionUrl: sub }).then(() => setSub("")))}>
           {t.save}
         </button>
+        <button disabled={busy || !proxy?.subscriptionUrlSet} onClick={() => void run(() => api.post("/api/proxy/subscription/sync"), t.proxySyncDone)}>
+          {t.proxySync}
+        </button>
         <button disabled={busy || (!proxy?.subscriptionUrlSet && !sub)} onClick={() => void run(() => api.get<ProxyNode[]>("/api/proxy/subscription/nodes").then(setNodes), null)}>
           {t.loadNodes}
         </button>
       </div>
+      {syncText && <div className={sync?.startsWith("ok:") ? "muted" : "err"}>{syncText}</div>}
       {nodes && (
         <table>
           <tbody>

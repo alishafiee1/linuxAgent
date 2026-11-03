@@ -16,6 +16,8 @@ export const MAX_PROBE_MISSES = 3;
 export const MAX_SAVED_LINKS = 20;
 export const FAILOVER_COOLDOWN_MS = 10 * 60_000;
 export const FAILOVER_WAIT_MS = 8_000;
+/** While healthy the subscription is refreshed this often, because it cannot be fetched during an outage. */
+export const SYNC_EVERY_MS = 6 * 3_600_000;
 const PROXY_TYPES = new Set(["VLESS", "VMess", "Trojan", "Shadowsocks", "vless", "vmess", "trojan", "shadowsocks"]);
 
 export interface ProxyDeps {
@@ -36,7 +38,12 @@ interface SavedLink {
   name: string;
   link: string;
   addedAt: string;
+  /** Set on links that came from the subscription; only those are pruned by a sync. */
+  source?: "subscription";
 }
+
+/** The part of a link that identifies the server. The remark after # changes (usage figures), so it is left out. */
+const linkKey = (l: string): string => l.trim().split("#")[0]!;
 
 function runProcess(cmd: string[], stdin: string): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
@@ -63,8 +70,11 @@ export class ProxyService {
     subscriptionUrlSet: false,
     connectionCount: 0,
     failover: { enabled: false, lastAt: null, lastResult: null },
+    subscriptionSync: { lastAt: null, lastResult: null },
     checkedAt: new Date(0).toISOString(),
   };
+  private syncLast: { at: number | null; result: string | null } = { at: null, result: null };
+  private syncing = false;
   private failoverLast: { at: number | null; result: string | null } = { at: null, result: null };
   private failing = false;
   private timer: NodeJS.Timeout | null = null;
@@ -107,6 +117,10 @@ export class ProxyService {
         enabled: this.failoverEnabled(),
         lastAt: this.failoverLast.at === null ? null : new Date(this.failoverLast.at).toISOString(),
         lastResult: this.failoverLast.result,
+      },
+      subscriptionSync: {
+        lastAt: this.syncLast.at === null ? null : new Date(this.syncLast.at).toISOString(),
+        lastResult: this.syncLast.result,
       },
     };
   }
@@ -164,7 +178,7 @@ export class ProxyService {
         continue;
       }
       const ip = await this.resolveHost(p.host).catch(() => null);
-      out.push({ id: s.id, name: s.name, scheme: p.scheme, host: p.host, port: p.port, remark: p.remark, ip, active: s.link === active, addedAt: s.addedAt });
+      out.push({ id: s.id, name: s.name, scheme: p.scheme, host: p.host, port: p.port, remark: p.remark, ip, active: s.link === active, fromSubscription: s.source === "subscription", addedAt: s.addedAt });
     }
     return out;
   }
@@ -212,6 +226,52 @@ export class ProxyService {
     return this.applyLink(item.link);
   }
 
+  // --- subscription sync (spec 024 R1 to R4)
+
+  /** Adds the subscription's links to the saved list and drops the ones it no longer has (never hand-added or active ones). */
+  async syncSubscription(): Promise<ProxyConnection[]> {
+    if (!this.d.settings.get("proxy.subscription.secret")) throw new HttpError(400, "no_subscription", "آدرس سابسکریپشن تنظیم نشده است.");
+    this.syncLast.at = this.now();
+    const fresh: { raw: string; p: ParsedLink }[] = [];
+    try {
+      const { raw } = await this.subscriptionLinks();
+      for (const l of raw) {
+        try {
+          fresh.push({ raw: l.trim(), p: parseLink(l.trim()) });
+        } catch {
+          // a line that is not a usable link
+        }
+      }
+      if (fresh.length === 0) throw new HttpError(502, "subscription_empty", "در سابسکریپشن اتصال قابل استفاده‌ای نبود.");
+    } catch (e) {
+      this.syncLast.result = "failed";
+      throw e;
+    }
+    const active = this.d.settings.get("proxy.link.secret")?.trim();
+    const keys = new Set(fresh.map((f) => linkKey(f.raw)));
+    const before = this.syncActive();
+    const next = before.filter((s) => s.source !== "subscription" || keys.has(linkKey(s.link)) || s.link === active);
+    const removed = before.length - next.length;
+    for (const s of next) {
+      const f = s.source === "subscription" && s.link !== active ? fresh.find((x) => linkKey(x.raw) === linkKey(s.link)) : undefined;
+      if (f) s.link = f.raw;
+    }
+    let added = 0;
+    for (const f of fresh) {
+      if (next.some((s) => linkKey(s.link) === linkKey(f.raw))) continue;
+      if (next.length >= MAX_SAVED_LINKS) break;
+      next.push({ id: randomUUID(), name: (f.p.remark || f.p.host).slice(0, 60), link: f.raw, addedAt: new Date(this.now()).toISOString(), source: "subscription" });
+      added++;
+    }
+    this.writeSaved(next);
+    this.syncLast.result = `ok:${added}:${removed}`;
+    return this.listConnections();
+  }
+
+  private syncIsDue(): boolean {
+    return this.syncLast.at === null || this.now() - this.syncLast.at > SYNC_EVERY_MS;
+  }
+
   // --- failover (spec R8)
 
   failoverEnabled(): boolean {
@@ -242,6 +302,8 @@ export class ProxyService {
     this.failoverLast.at = this.now();
     let result = "no_other_connection";
     try {
+      // The subscription may have a newer address. It often cannot be reached while the proxy is down, and that is fine.
+      if (this.d.settings.get("proxy.subscription.secret")) await this.syncSubscription().catch(() => {});
       const active = this.d.settings.get("proxy.link.secret")?.trim();
       const others = this.syncActive().filter((s) => s.link !== active);
       if (others.length) result = "none_worked";
@@ -323,6 +385,12 @@ export class ProxyService {
     }
     this.status = { ...this.status, state, reason, latencyMs, checkedAt: new Date().toISOString() };
     if (state !== prev) for (const l of this.listeners) l(this.current());
+    if (state === "connected" && this.failoverEnabled() && this.d.settings.get("proxy.subscription.secret") && this.syncIsDue() && !this.syncing) {
+      this.syncing = true;
+      void this.syncSubscription()
+        .catch(() => {})
+        .finally(() => (this.syncing = false));
+    }
     const due = this.failoverLast.at === null || this.now() - this.failoverLast.at > FAILOVER_COOLDOWN_MS;
     if (state === "disconnected" && reason === "server_unreachable" && this.failoverEnabled() && due && !this.failing) void this.failover();
     return this.current();

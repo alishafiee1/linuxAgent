@@ -26,6 +26,7 @@
 - [021 — تب روتین تازه و ساخت روتین به دست بات‌ها](cycles/021-routines-page/simple.md)
 - [022 — ظاهر نرم، آواتار بات‌ها، نشان تأیید و انتخاب مدل](cycles/022-soft-theme-avatars-model/simple.md)
 - [023 — مدیریت چند اتصال پروکسی](cycles/023-proxy-connections/simple.md)
+- [024 — ترمیم خودکار پروکسی با ساب و اتصال‌های بعدی](cycles/024-proxy-auto-heal/simple.md)
 
 ## لغوشده
 

@@ -183,6 +183,8 @@ export interface ProxyStatus {
   connectionCount: number;
   /** lastResult: `switched:<name>`, `none_worked` or `no_other_connection`. */
   failover: { enabled: boolean; lastAt: string | null; lastResult: string | null };
+  /** lastResult: `ok:<added>:<removed>` or `failed`. */
+  subscriptionSync: { lastAt: string | null; lastResult: string | null };
   checkedAt: string;
 }
 
@@ -197,6 +199,7 @@ export interface ProxyConnection {
   /** The resolved server address, which the host kill switch needs. Null when the name does not resolve. */
   ip: string | null;
   active: boolean;
+  fromSubscription: boolean;
   addedAt: string;
 }
 

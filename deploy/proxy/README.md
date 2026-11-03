@@ -94,3 +94,28 @@ incus network acl delete hermes-killswitch
 # full restore if needed:
 incus snapshot restore hermes pre-proxy-20261029
 ```
+
+## When the proxy domain changes its IP (opt-in)
+
+The IP of the proxy server is pinned when the config is applied, and the kill switch only allows that IP. If the domain
+moves to another address (this happened on 2026-11-03: `3x.n3xus.ir` went from 94.184.12.156 to 77.104.95.64), hermes loses
+its internet and the panel cannot repair it, because it needs the internet to look the new address up.
+
+Two scripts on the host `rodi` (copy them to the home folder of the user in `incus-admin`):
+
+- `move-proxy-ip.sh <old-ip> <new-ip> <port>`: allows the new IP in the kill switch, swaps the IP in `/etc/sing-box/config.json`
+  (the old file stays as `config.json.before-ipmove`), restarts sing-box and restores the old config if it does not start.
+  It refuses to run when `<old-ip>` is not the proxy server in the config.
+- `proxy-heal.sh`: does that by itself when the domain points somewhere else, the old IP does not answer and the new one does.
+  Try it first with `DRY_RUN=1 DOMAIN=3x.n3xus.ir bash ~/proxy-heal.sh`.
+
+Nothing here installs them. To turn the automatic part on, add this line to the crontab (`crontab -e`) of that user:
+
+```
+*/5 * * * * DOMAIN=3x.n3xus.ir bash ~/proxy-heal.sh >> ~/proxy-heal.log 2>&1
+```
+
+Think before you do: this lets a DNS record widen the kill switch by itself. The link uses plain WebSocket (no TLS), so a wrong
+address would see the VLESS id. Leave it off if you do not trust the DNS of the domain.
+
+To undo a move: `incus exec hermes -- cp -p /etc/sing-box/config.json.before-ipmove /etc/sing-box/config.json`, then restart sing-box.

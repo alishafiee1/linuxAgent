@@ -375,6 +375,7 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
   app.delete<{ Params: { id: string } }>("/api/proxy/connections/:id", async (req) => needProxy().removeConnection(req.params.id));
   app.post<{ Params: { id: string } }>("/api/proxy/connections/:id/activate", async (req) => needProxy().activateConnection(req.params.id));
   app.put("/api/proxy/failover", async (req) => needProxy().setFailover(parse(z.object({ enabled: z.boolean() }), req.body).enabled));
+  app.post("/api/proxy/subscription/sync", async () => needProxy().syncSubscription());
   app.get("/api/proxy/subscription/nodes", async () => needProxy().subscriptionNodes());
   app.post("/api/proxy/select", async (req) => needProxy().selectSubscriptionNode(parse(z.object({ index: z.number().int().min(0) }), req.body).index));
 
