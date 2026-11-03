@@ -1,5 +1,5 @@
 import { EFFORT_LEVELS, MODEL_CHOICES, type Bot, type BotInput, type Effort } from "@linux-agent/shared";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "./api";
 import { IconCheck, IconChevronDown, IconCpu, IconSliders } from "./icons";
 import { useT } from "./i18n";
@@ -10,7 +10,7 @@ type Open = { kind: "model" | "effort"; anchor: HTMLElement } | null;
 const modelName = (id: string | null, fallback: string): string => (id ? (MODEL_CHOICES.find((m) => m.id === id)?.name ?? id) : fallback);
 
 /** Model and effort of one bot, changed right above the composer. Every change is saved at once and applies from the next message. */
-export function ModelChips({ bot, onChanged }: { bot: Bot; onChanged: (b: Bot) => void }) {
+export function ModelChips({ bot, onChanged, extra }: { bot: Bot; onChanged: (b: Bot) => void; extra?: ReactNode }) {
   const { t } = useT();
   const [open, setOpen] = useState<Open>(null);
   const [other, setOther] = useState("");
@@ -95,6 +95,7 @@ export function ModelChips({ bot, onChanged }: { bot: Bot; onChanged: (b: Bot) =
           </div>
         </FloatingMenu>
       )}
+      {extra}
     </div>
   );
 }

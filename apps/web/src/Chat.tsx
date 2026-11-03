@@ -169,7 +169,16 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <ModelChips bot={bot} onChanged={() => onBotChanged?.()} />
+        <ModelChips
+          bot={bot}
+          onChanged={() => onBotChanged?.()}
+          extra={
+            <button type="button" className={`chip research-chip${research ? " on" : ""}`} aria-pressed={research} title={t.researchHint} onClick={() => setResearch(!research)}>
+              <IconGlobe size={14} />
+              {t.research}
+            </button>
+          }
+        />
         <UploadTray items={uploads.items} onRemove={uploads.remove} onRetry={uploads.retry} />
         <form onSubmit={send}>
           <input
@@ -185,10 +194,6 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
           />
           <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
             <IconArrowUp size={16} />
-          </button>
-          <button type="button" className={`ghost research-btn${research ? " on" : ""}`} aria-pressed={research} title={t.researchHint} onClick={() => setResearch(!research)}>
-            <IconGlobe size={15} />
-            {t.research}
           </button>
           <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>

@@ -44,6 +44,8 @@ interface SavedLink {
 
 /** The part of a link that identifies the server. The remark after # changes (usage figures), so it is left out. */
 const linkKey = (l: string): string => l.trim().split("#")[0]!;
+/** The same server even if only the name after # differs. */
+const same = (a: string, b: string | undefined): boolean => !!b && linkKey(a) === linkKey(b);
 
 function runProcess(cmd: string[], stdin: string): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
@@ -154,7 +156,7 @@ export class ProxyService {
   private syncActive(): SavedLink[] {
     const list = this.readSaved();
     const active = this.d.settings.get("proxy.link.secret")?.trim();
-    if (active && !list.some((s) => s.link === active) && list.length < MAX_SAVED_LINKS) {
+    if (active && !list.some((s) => same(s.link, active)) && list.length < MAX_SAVED_LINKS) {
       try {
         const p = parseLink(active);
         list.push({ id: randomUUID(), name: (p.remark || p.host).slice(0, 60), link: active, addedAt: new Date(this.now()).toISOString() });
@@ -178,7 +180,7 @@ export class ProxyService {
         continue;
       }
       const ip = await this.resolveHost(p.host).catch(() => null);
-      out.push({ id: s.id, name: s.name, scheme: p.scheme, host: p.host, port: p.port, remark: p.remark, ip, active: s.link === active, fromSubscription: s.source === "subscription", addedAt: s.addedAt });
+      out.push({ id: s.id, name: s.name, scheme: p.scheme, host: p.host, port: p.port, remark: p.remark, ip, active: same(s.link, active), fromSubscription: s.source === "subscription", addedAt: s.addedAt });
     }
     return out;
   }
@@ -214,7 +216,7 @@ export class ProxyService {
     const list = this.syncActive();
     const item = list.find((s) => s.id === id);
     if (!item) throw new HttpError(404, "no_connection", "این اتصال پیدا نشد.");
-    if (item.link === this.d.settings.get("proxy.link.secret")?.trim())
+    if (same(item.link, this.d.settings.get("proxy.link.secret")?.trim()))
       throw new HttpError(409, "active", "اتصال فعال را نمی‌شود حذف کرد؛ اول یکی دیگر را فعال کنید.");
     this.writeSaved(list.filter((s) => s.id !== id));
     return this.listConnections();
@@ -250,10 +252,10 @@ export class ProxyService {
     const active = this.d.settings.get("proxy.link.secret")?.trim();
     const keys = new Set(fresh.map((f) => linkKey(f.raw)));
     const before = this.syncActive();
-    const next = before.filter((s) => s.source !== "subscription" || keys.has(linkKey(s.link)) || s.link === active);
+    const next = before.filter((s) => s.source !== "subscription" || keys.has(linkKey(s.link)) || same(s.link, active));
     const removed = before.length - next.length;
     for (const s of next) {
-      const f = s.source === "subscription" && s.link !== active ? fresh.find((x) => linkKey(x.raw) === linkKey(s.link)) : undefined;
+      const f = s.source === "subscription" && !same(s.link, active) ? fresh.find((x) => linkKey(x.raw) === linkKey(s.link)) : undefined;
       if (f) s.link = f.raw;
     }
     let added = 0;
@@ -305,7 +307,7 @@ export class ProxyService {
       // The subscription may have a newer address. It often cannot be reached while the proxy is down, and that is fine.
       if (this.d.settings.get("proxy.subscription.secret")) await this.syncSubscription().catch(() => {});
       const active = this.d.settings.get("proxy.link.secret")?.trim();
-      const others = this.syncActive().filter((s) => s.link !== active);
+      const others = this.syncActive().filter((s) => !same(s.link, active));
       if (others.length) result = "none_worked";
       for (const s of others) {
         try {

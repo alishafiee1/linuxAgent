@@ -67,7 +67,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
               <strong>{a.botName}</strong>
               <span className="muted">· {a.reason}</span>
               <span className="spacer" />
-              <span className="muted">{new Date(a.createdAt).toLocaleString(locale)}</span>
+              <span className="muted"><Stamp iso={a.createdAt} locale={locale} /></span>
             </div>
             <ApprovalDetails summary={a.summary} toolName={a.toolName} input={a.input} />
             <div className="row approval-actions">
@@ -96,7 +96,7 @@ export function ApprovalsPage({ activityTick }: { activityTick: number }) {
                 <td>
                   {t.approvalStates[a.state]} {a.decidedByChannel ? `(${t.channels[a.decidedByChannel]})` : ""}
                 </td>
-                <td className="muted">{a.decidedAt ? new Date(a.decidedAt).toLocaleString(locale) : ""}</td>
+                <td className="muted">{a.decidedAt ? <Stamp iso={a.decidedAt} locale={locale} /> : ""}</td>
               </tr>
             ))}
           </tbody>
@@ -119,7 +119,7 @@ export function UsagePage() {
       <h2>{t.usage}</h2>
       {report.limit.waiting && (
         <div className="banner warn card" style={{ marginBottom: 12 }}>
-          {t.limitBanner} {report.limit.resetAt ? new Date(report.limit.resetAt).toLocaleString(locale) : "?"}
+          {t.limitBanner} {report.limit.resetAt ? <Stamp iso={report.limit.resetAt} locale={locale} /> : "?"}
         </div>
       )}
       <div className="card section">
@@ -135,7 +135,7 @@ export function UsagePage() {
               <div className="row">
                 <strong>{t.planTypes[l.type] ?? l.type}</strong>
                 <span className="spacer" />
-                <span>{percent === null ? t.planNoFigure : `٪${percent.toLocaleString(locale)}`}</span>
+                <span>{percent === null ? t.planNoFigure : <bdi dir="rtl">{`${percent.toLocaleString(locale)}٪`}</bdi>}</span>
               </div>
               {percent !== null && (
                 <div className="upload-bar plan-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
@@ -144,8 +144,8 @@ export function UsagePage() {
               )}
               <div className="muted plan-meta">
                 {t.planStatus[l.status]}
-                {l.resetsAt && ` · ${t.planResets}: ${new Date(l.resetsAt).toLocaleString(locale)}`}
-                {` · ${t.planReported}: ${new Date(l.reportedAt).toLocaleString(locale)}`}
+                {l.resetsAt && (<> · {t.planResets}: <Stamp iso={l.resetsAt} locale={locale} /></>)}
+                <> · {t.planReported}: <Stamp iso={l.reportedAt} locale={locale} /></>
               </div>
             </div>
           );
@@ -166,7 +166,7 @@ export function UsagePage() {
                   {u.title}
                 </span>
                 <span className="muted">{u.botName}</span>
-                <span>{`٪${Math.round(u.share * 100).toLocaleString(locale)}`}</span>
+                <bdi dir="rtl">{`${Math.round(u.share * 100).toLocaleString(locale)}٪`}</bdi>
               </div>
               <div className="upload-bar">
                 <span style={{ width: `${Math.round(u.share * 100)}%` }} />
@@ -276,13 +276,13 @@ export function FilesPage() {
                 {e.type === "dir" ? (
                   <button className="ghost" onClick={() => setPath(e.path)}>
                     <IconFolder size={15} />
-                    {e.name}
+                    <bdi dir="ltr">{e.name}</bdi>
                   </button>
                 ) : (
                   <span dir="ltr">{e.name}</span>
                 )}
               </td>
-              <td className="num muted">{e.type === "file" ? `${(e.size / 1024).toFixed(1)} KB` : ""}</td>
+              <td className="num muted">{e.type === "file" ? <bdi dir="ltr">{`${(e.size / 1024).toFixed(1)} KB`}</bdi> : ""}</td>
               <td>
                 {e.type === "file" && (
                   <a className="dl" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
@@ -352,6 +352,11 @@ function ChannelForm({ name, label, current, onSaved }: { name: "bale" | "telegr
       </div>
     </div>
   );
+}
+
+/** A date kept in one piece, so its numbers and separators do not flip inside right-to-left text. */
+function Stamp({ iso, locale }: { iso: string; locale: string }) {
+  return <bdi dir={locale.startsWith("fa") ? "rtl" : "ltr"}>{new Date(iso).toLocaleString(locale)}</bdi>;
 }
 
 export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; onSaved: () => void }) {
