@@ -3211,3 +3211,39 @@ a.panel-link:hover { background: var(--accent-ring); }
 
 /* one line of text sits in the middle of the box, level with the buttons; more lines grow it */
 .composer textarea { padding-block: 11px; line-height: 22px; }
+
+/* ======================================================================
+   Cycle 030: pages that use a wide desktop screen.
+   .cols = independent cards laid out in two columns; .wide = one column, but wider.
+   ====================================================================== */
+.page { padding-inline: max(22px, calc((100% - 960px) / 2)); }
+.page.wide,
+.page.rt-page { padding-inline: max(22px, calc((100% - 1200px) / 2)); }
+.page.cols { padding-inline: max(22px, calc((100% - 1240px) / 2)); }
+
+.page h2 { font-size: 20px; }
+
+.platform-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.platform.card { padding: 14px; border-radius: var(--r-md); transition: transform var(--tr), box-shadow var(--tr); }
+.platform.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+.platform-group { margin: 18px 0 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.2px; }
+
+.page .col { display: contents; }
+@media (min-width: 1100px) {
+  .page.cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 18px;
+    align-content: start;
+    align-items: start;
+  }
+  .page.cols > h2,
+  .page.cols > p,
+  .page.cols > .banner,
+  .page.cols > .empty,
+  .page.cols > .row,
+  .page.cols > table { grid-column: 1 / -1; }
+  .page.cols > .card,
+  .page.cols .col > .card { margin: 0 0 18px; }
+  .page .col { display: block; min-width: 0; }
+}

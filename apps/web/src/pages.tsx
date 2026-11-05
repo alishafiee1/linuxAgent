@@ -36,7 +36,7 @@ export function UsagePage() {
   if (!report) return null;
   const fmt = (n: number) => n.toLocaleString();
   return (
-    <div className="page">
+    <div className="page cols">
       <h2>{t.usage}</h2>
       {report.limit.waiting && (
         <div className="banner warn card" style={{ marginBottom: 12 }}>
@@ -149,7 +149,7 @@ export function FilesPage() {
   }, [root, path]);
   const up = path.split("/").slice(0, -1).join("/");
   return (
-    <div className="page">
+    <div className="page wide">
       <div className="row">
         <h2 style={{ margin: 0 }}>{t.files}</h2>
         <span className="spacer" />
@@ -304,8 +304,9 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
     }
   };
   return (
-    <div className="page">
+    <div className="page cols">
       <h2>{t.settings}</h2>
+      <div className="col">
       <div className="card section">
         <h3>
           <IconSliders size={16} />
@@ -344,6 +345,10 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
           {error && <span className="err">{error}</span>}
         </div>
       </div>
+        <PushPanel />
+        <DevicesSection />
+      </div>
+      <div className="col">
       <div className="card section">
         <div className="row">
           <h3>
@@ -373,9 +378,8 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
-      <PushPanel />
-      <ProxyPanel proxy={proxy} onChanged={onSaved} />
-      <DevicesSection />
+        <ProxyPanel proxy={proxy} onChanged={onSaved} />
+      </div>
     </div>
   );
 }

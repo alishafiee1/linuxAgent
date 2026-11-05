@@ -51,7 +51,7 @@ export function KnowledgePage() {
   }, [memory, scope]);
 
   return (
-    <div className="page">
+    <div className="page cols">
       <h2>{t.knowledge}</h2>
       <div className="card section">
         <h3>{t.memory}</h3>
@@ -354,7 +354,7 @@ export function BrowserPage({ bots }: { bots: Bot[] }) {
   const current = capable.find((b) => b.id === botId)?.id ?? capable[0]?.id ?? "";
 
   return (
-    <div className="page">
+    <div className="page cols">
       <h2>{t.browser}</h2>
       <div className="card section">
         <h3>

@@ -147,7 +147,7 @@ export function ConnectionsPage() {
     void load();
   };
   return (
-    <div className="page">
+    <div className="page wide">
       <div className="row">
         <h2 style={{ margin: 0 }}>{t.connections}</h2>
         <span className="spacer" />
