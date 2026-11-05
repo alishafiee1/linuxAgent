@@ -32,6 +32,7 @@
 - [027 — فهرست مدل از Claude Code و تلاش هر مدل](cycles/027-model-list/simple.md)
 - [028 — طراحی تازهٔ ظاهر برای موبایل و لپ‌تاپ](cycles/028-responsive-shell/simple.md)
 - [029 — منوی بازشونده، لینک صفحه‌های پنل و آدرس‌دهی مرورگر](cycles/029-panel-links/simple.md)
+- [ظاهر تازهٔ صفحهٔ روتین‌ها](cycles/cycles\030-routines-look/simple.md)
 
 ## لغوشده
 

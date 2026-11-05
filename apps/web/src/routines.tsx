@@ -1,7 +1,7 @@
 import type { Bot, Routine, RoutinePreview } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "./api";
-import { IconBot, IconCheck, IconClock, IconPencil, IconPlay, IconPlus, IconTrash, IconX } from "./icons";
+import { IconCheck, IconClock, IconPencil, IconPlay, IconPlus, IconSparkles, IconTrash, IconUser, IconX } from "./icons";
 import { useT } from "./i18n";
 import { buildCron, classifyCron, describeCron, type CronForm, type Freq } from "./cronText";
 
@@ -90,7 +90,7 @@ function Timeline({ routines, onPick }: { routines: Routine[]; onPick: (id: stri
               const title = [...new Set(m.items.map((i) => i.r.name))].join("، ");
               const time = new Date(first.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
               const label = `${title} · ${time}${m.items.length > 1 ? ` · ${m.items.length.toLocaleString(locale)}` : ""}`;
-              return <button key={first.at} type="button" className={`rt-tl-mark ${first.r.createdBy ? "bot" : "mine"}`} style={{ left: `${m.left}%` }} title={label} aria-label={label} onClick={() => onPick(first.r.id)} />;
+              return <button key={first.at} type="button" className={`rt-tl-mark ${first.r.createdBy ? "bot" : "mine"}`} style={{ left: `${m.left}%` }} data-tip={label} aria-label={label} onClick={() => onPick(first.r.id)} />;
             })}
           </div>
         </div>
@@ -312,7 +312,7 @@ function RoutineRow({ r, now, flash, onChanged, onEdit, onOpen }: { r: Routine; 
     <div className={`rt-row${r.enabled ? "" : " paused"}${flash ? " flash" : ""}`} data-routine={r.id}>
       <div className="rt-cell-main">
         <span className={`rt-maker ${r.createdBy ? "bot" : "mine"}`} title={r.createdBy ? t.rt.madeBy.replace("{bot}", r.createdBy) : t.rt.madeByYou}>
-          {r.createdBy ? <IconBot size={13} /> : <IconCheck size={13} />}
+          {r.createdBy ? <IconSparkles size={13} /> : <IconUser size={13} />}
         </span>
         <div className="rt-min">
           <div className="rt-name" dir="auto" title={r.name}>
@@ -416,6 +416,7 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
     .filter((r) => filter === "all" || (filter === "mine" ? !r.createdBy : r.createdBy))
     .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? "~").localeCompare(b.nextRunAt ?? "~") || a.name.localeCompare(b.name));
   const soonest = list.filter((r) => r.enabled && r.nextRunAt).sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!))[0];
+  const enabledCount = list.filter((r) => r.enabled).length;
   const failing = list.filter((r) => r.last && ["failed", "interrupted"].includes(r.last.state)).length;
 
   const pick = (id: string) => {
@@ -426,15 +427,21 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
 
   return (
     <div className="page rt-page">
-      <div className="row">
-        <h2 style={{ margin: 0 }}>{t.routines}</h2>
-        <span className="spacer" />
+      <header className="rt-top">
+        <div className="rt-brand">
+          <span className="rt-logo">
+            <IconClock size={20} />
+          </span>
+          <div>
+            <h2 className="rt-title">{t.routines}</h2>
+            <p className="rt-subtitle">{t.rt.help}</p>
+          </div>
+        </div>
         <button className="primary" disabled={!bots.length} onClick={() => setDialog({ routine: null })}>
           <IconPlus size={15} />
           {t.newRoutine}
         </button>
-      </div>
-      <p className="muted">{t.rt.help}</p>
+      </header>
 
       {hookUrl && (
         <div className="help-box">
@@ -452,13 +459,31 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
       )}
 
       {list.length > 0 && (
-        <div className="rt-summary">
-          <span>
-            <IconClock size={14} />
-            {t.rt.nextRun}: <strong>{soonest ? `${when(soonest.nextRunAt!, soonest.timezone, now, t, locale)} · ${soonest.name}` : "—"}</strong>
-          </span>
-          {failing > 0 && <span className="err">{t.rt.failing.replace("{n}", failing.toLocaleString(locale))}</span>}
-        </div>
+        <section className="rt-stats">
+          <div className="rt-stat">
+            <strong>{list.length.toLocaleString(locale)}</strong>
+            <span>{t.rt.statTotal}</span>
+          </div>
+          <i className="rt-stat-sep" />
+          <div className="rt-stat">
+            <strong>{enabledCount.toLocaleString(locale)}</strong>
+            <span>{t.rt.statActive}</span>
+          </div>
+          <i className="rt-stat-sep" />
+          <div className="rt-stat">
+            <strong>{(list.length - enabledCount).toLocaleString(locale)}</strong>
+            <span>{t.rt.statPaused}</span>
+          </div>
+          <i className="rt-stat-sep" />
+          <div className="rt-stat">
+            <strong>{soonest ? when(soonest.nextRunAt!, soonest.timezone, now, t, locale) : "—"}</strong>
+            <span>
+              {t.rt.nextRun}
+              {soonest && ` · ${soonest.name}`}
+            </span>
+          </div>
+          {failing > 0 && <span className="err rt-failing">{t.rt.failing.replace("{n}", failing.toLocaleString(locale))}</span>}
+        </section>
       )}
 
       {list.length > 0 && <Timeline routines={list} onPick={pick} />}

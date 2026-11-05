@@ -197,6 +197,9 @@ const fa = {
   rt: {
     help: "کارهایی که بات خودش در زمان مشخص یا با خبر یک سرویس بیرونی انجام می‌دهد؛ ساختهٔ شما یا خود بات‌ها.",
     next24: "۲۴ ساعت آینده",
+    statTotal: "کل",
+    statActive: "فعال",
+    statPaused: "متوقف",
     noRuns24: "در ۲۴ ساعت آینده اجرایی نیست.",
     you: "شما",
     botMade: "بات‌ها",
@@ -571,6 +574,9 @@ const en: Dict = {
   rt: {
     help: "Work a bot does by itself on a schedule, or when an outside service sends word. Made by you or by the bots.",
     next24: "Next 24 hours",
+    statTotal: "Total",
+    statActive: "Active",
+    statPaused: "Paused",
     noRuns24: "No runs in the next 24 hours.",
     you: "You",
     botMade: "Bots",
