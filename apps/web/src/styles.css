@@ -3580,3 +3580,77 @@ textarea { min-height: 88px; }
 /* a title that has a line of explanation under it gets some air */
 .page > .row { align-items: flex-start; margin-block-end: 6px; }
 .page > .row > h2 { margin: 0; }
+
+/* ======================================================================
+   Cycle 034: shell details copied from the reference preview.
+   ====================================================================== */
+.bot-name { display: flex; flex-direction: column; min-width: 0; line-height: 1.45; }
+.bot-name b { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bot-name small { font-size: 11px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bot-item { min-height: 54px; border-radius: 14px; border-inline-start-width: 0; }
+.bot-item.active { background: var(--accent-soft); border-inline-start-color: transparent; }
+
+.account { margin-block-start: auto; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); flex: none; }
+.account-mark { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--surface-2); font-size: 13px; font-weight: 700; text-transform: uppercase; }
+.account-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.account-text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-text small { font-size: 11px; color: var(--muted); }
+
+/* status chips in the top strip: soft colour, no outline */
+.topbar .pill { border-color: transparent; font-weight: 600; font-size: 12px; padding: 4px 12px; }
+.topbar .runs-pill { background: var(--accent-soft); color: var(--accent); }
+.topbar .warn-pill { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.topbar .pill:has(.dot.good) { background: color-mix(in srgb, var(--good) 12%, transparent); color: var(--good); }
+.topbar .pill:has(.dot.bad) { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+.topbar { gap: 8px; }
+
+/* ---------- chat start page (cycle 034) ---------- */
+.hub-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-block-end: 20px; }
+.hub-top h2 { margin: 0; }
+.hub-top p { margin: 4px 0 0; max-width: 560px; font-size: 14px; color: var(--muted); }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.hub-card { padding: 20px; display: grid; gap: 16px; transition: box-shadow var(--tr); }
+.hub-card:hover { box-shadow: var(--shadow-pop); }
+.hub-card-head { display: flex; align-items: flex-start; gap: 14px; }
+.hub-card-text { min-width: 0; flex: 1; }
+.hub-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.hub-name h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.hub-pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.hub-pill.good { background: color-mix(in srgb, var(--good) 12%, transparent); color: var(--good); }
+.hub-pill.warn { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.hub-role { margin: 2px 0 0; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-meta { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.hub-open { width: 100%; min-height: 44px; font-weight: 700; }
+.hub-chev { transform: rotate(90deg); }
+.hub-sub { margin: 28px 0 12px; font-size: 16px; font-weight: 700; }
+.hub-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; }
+.hub-row { justify-content: flex-start; gap: 12px; min-height: 56px; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); text-align: start; }
+.hub-row:hover:not(:disabled) { background: var(--accent-soft); }
+.hub-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.5; }
+.hub-row-text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-row-text small { font-size: 12px; font-weight: 400; color: var(--muted); }
+.hub-empty { display: grid; justify-items: center; gap: 8px; }
+.hub-emoji { font-size: 40px; }
+
+/* ---------- routines as cards, like the reference (cycle 034) ---------- */
+.rt-page { background: transparent; padding-block: 24px 32px; }
+.rt-page .rt-top { margin-block-end: 18px; }
+.rt-count-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-block: 4px 12px; font-size: 14px; color: var(--muted); }
+.rt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; align-items: start; }
+.rt-card { padding: 18px; display: grid; gap: 14px; }
+.rt-card.paused { opacity: 0.72; }
+.rt-card.flash { animation: rt-flash 1.2s; }
+.rt-card-head { display: flex; align-items: flex-start; gap: 12px; }
+.rt-card-title { flex: 1; min-width: 0; }
+.rt-card-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rt-card-name h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+.rt-by { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.rt-card-desc { margin: 6px 0 0; font-size: 13px; line-height: 1.8; color: var(--muted); }
+.rt-card-next { margin: 4px 0 0; font-size: 13px; font-weight: 600; }
+.rt-card-last { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.rt-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rt-card-actions button { min-height: 40px; }
+.rt-page .rt-card .rt-chip { background: var(--surface-3); border: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+.rt-page .rt-maker { width: 40px; height: 40px; border-radius: 14px; }
+.rt-page .rt-panel { background: var(--surface); border-radius: 16px; }
+.rt-page .rt-head { display: none; }

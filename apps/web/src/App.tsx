@@ -5,8 +5,9 @@ import { api, ApiError } from "./api";
 import { BotAvatar } from "./avatars";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
+import { ChatHub } from "./chatHub";
 import { ConnectionsPage } from "./connections";
-import { IconActivity, IconBot, IconChat, IconChevronDown, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconChevronDown, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconLogout, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { FilesPage, SettingsPage, UsagePage } from "./pages";
 import { BrowserPage, KnowledgePage, SharedPagesPage, VaultPage } from "./pagesExt";
@@ -101,7 +102,7 @@ export function App() {
   }, []);
 
   const ctx = useMemo(() => ({ t: dictionaries[lang], lang, setLang }), [lang, setLang]);
-  return <I18n.Provider value={ctx}>{me === undefined ? <div className="empty">…</div> : me === null ? <Login onDone={setMe} /> : <Shell onLogout={() => setMe(null)} />}</I18n.Provider>;
+  return <I18n.Provider value={ctx}>{me === undefined ? <div className="empty">…</div> : me === null ? <Login onDone={setMe} /> : <Shell me={me} onLogout={() => setMe(null)} />}</I18n.Provider>;
 }
 
 function Login({ onDone }: { onDone: (m: Me) => void }) {
@@ -166,7 +167,7 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
   );
 }
 
-function Shell({ onLogout }: { onLogout: () => void }) {
+function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const { t, lang, setLang } = useT();
   // A link in a Bale or Telegram message opens the page that holds the waiting card.
   const [view, setView] = useState<View>(() => parseHash()?.view ?? "chat");
@@ -192,6 +193,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [menu, setMenu] = useState<{ bot: Bot; x: number; y: number } | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [openConversation, setOpenConversation] = useState<string | null>(null);
+  // The chat page shows the bot cards until a bot is picked.
+  const [chatOpen, setChatOpen] = useState(() => !!parseHash()?.bot);
   const [theme, toggleTheme] = useTheme();
   const { byBot, reload: reloadPending } = usePending(activityTick);
 
@@ -258,14 +261,15 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   }, [pagesOpen]);
   // The address bar follows the page, and a pasted or clicked panel link moves the page.
   useEffect(() => {
-    const want = `#/${view}`;
+    const want = view === "chat" && chatOpen && botId ? `#/chat/${botId}` : `#/${view}`;
     if (!location.hash.startsWith(want)) history.pushState(null, "", want);
-  }, [view]);
+  }, [view, chatOpen, botId]);
   useEffect(() => {
     const onHash = () => {
       const h = parseHash();
       if (!h) return;
       setView(h.view);
+      if (h.view === "chat") setChatOpen(!!h.bot);
       if (h.bot) setBotId(h.bot);
       setOpenConversation(h.conversation);
       setMore(false);
@@ -276,18 +280,22 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : v === "vault" ? t.vault : t[v]);
-  const go = (v: View) => {
+  const go = (v: View, openBot = false) => {
     setView(v);
+    if (v === "chat") setChatOpen(openBot);
     setMore(false);
+  };
+  const openBotChat = (id: string, conversationId: string | null = null) => {
+    setBotId(id);
+    setOpenConversation(conversationId);
+    go("chat", true);
+    setDrawer(false);
   };
   // A bot waiting for an answer: its chat is where the question and the buttons are.
   const openPending = () => {
     const id = Object.keys(byBot).find((k) => (byBot[k]?.length ?? 0) > 0);
-    if (id) {
-      setBotId(id);
-      setOpenConversation(null);
-    }
-    go("chat");
+    if (id) openBotChat(id);
+    else go("chat");
   };
   const toggleLang = () => {
     const next: UiLanguage = lang === "fa" ? "en" : "fa";
@@ -328,9 +336,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         <button className="ghost desk-only" onClick={toggleLang}>
           {lang === "fa" ? "EN" : "فا"}
         </button>
-        <button className="ghost desk-only" onClick={logout}>
-          {t.logout}
-        </button>
       </header>
 
       <div className={`scrim${drawer ? " show" : ""}`} onClick={() => setDrawer(false)} />
@@ -368,12 +373,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           <div key={b.id} className="bot-row">
             <button
               className={`bot-item ${b.id === botId && view === "chat" ? "active" : ""}`}
-              onClick={() => {
-                setBotId(b.id);
-                setOpenConversation(null);
-                setView("chat");
-                setDrawer(false);
-              }}
+              onClick={() => openBotChat(b.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setMenu({ bot: b, x: e.clientX, y: e.clientY });
@@ -382,9 +382,12 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               <BotAvatar
                 bot={b}
                 busy={(byBot[b.id]?.length ?? 0) > 0}
-                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => { setBotId(b.id); setOpenConversation(null); go("chat"); setDrawer(false); }} />}
+                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => openBotChat(b.id)} />}
               />
-              <span className="bot-name">{b.name}</span>
+              <span className="bot-name">
+                <b>{b.name}</b>
+                <small>{b.persona.split("\n")[0]}</small>
+              </span>
             </button>
             <button
               className="ghost bot-more"
@@ -403,6 +406,16 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           <IconPlus size={15} />
           {t.newBot}
         </button>
+        <div className="account">
+          <span className="account-mark">{me.username.slice(0, 2)}</span>
+          <span className="account-text">
+            <b>{me.username}</b>
+            <small>{t.owner}</small>
+          </span>
+          <button className="ghost icon-btn" aria-label={t.logout} title={t.logout} onClick={logout}>
+            <IconLogout size={17} />
+          </button>
+        </div>
       </aside>
 
       <main className="main">
@@ -413,7 +426,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
         {status?.lowDiskMessage && <div className="banner warn">{status.lowDiskMessage}</div>}
+        {view === "chat" && !chatOpen && <ChatHub bots={bots} pending={byBot} onOpen={(id, conversationId) => openBotChat(id, conversationId ?? null)} onNew={() => setDialog({ bot: null })} />}
         {view === "chat" &&
+          chatOpen &&
           (bot ? (
             <Chat
               key={bot.id}
@@ -421,7 +436,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               activityTick={activityTick}
               initialConversation={openConversation}
               onBotChanged={() => void loadBots()}
-              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => go("chat")} />}
+              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => go("chat", true)} />}
             />
           ) : (
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
@@ -431,9 +446,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             bots={bots}
             activityTick={activityTick}
             onOpenConversation={(id, conversationId) => {
-              setBotId(id);
-              setOpenConversation(conversationId);
-              setView("chat");
+              openBotChat(id, conversationId);
             }}
           />}
         {view === "knowledge" && <KnowledgePage />}
@@ -510,8 +523,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           onSaved={async (b) => {
             setDialog(null);
             await loadBots();
-            setBotId(b.id);
-            setView("chat");
+            openBotChat(b.id);
           }}
         />
       )}
