@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type Rea
 import { currentActivity, formatElapsed } from "./activity";
 import { api } from "./api";
 import { BotAvatar } from "./avatars";
-import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconGlobe, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
+import { IconActivity, IconPaperclip, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconGlobe, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
 import { ModelChips } from "./modelChips";
@@ -31,6 +31,7 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
   const [runs, setRuns] = useState<Run[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const messages = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -83,6 +84,13 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
   };
 
   const [research, setResearch] = useState(false);
+  // The text box grows with what is typed, up to a limit set in CSS; past that it scrolls.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
 
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -193,9 +201,9 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
             }}
           />
           <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
-            <IconArrowUp size={16} />
+            <IconPaperclip size={17} />
           </button>
-          <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
+          <textarea ref={box} rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
             <span className="send-label">{t.send}</span>
             <IconSend size={15} />

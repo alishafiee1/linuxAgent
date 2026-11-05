@@ -3171,3 +3171,40 @@ button:active:not(:disabled) {
 /* bullet lists inside bot replies: padding on both sides so a left-to-right item keeps its marker inside the bubble */
 .md ul,
 .md ol { padding-inline: 1.5em; }
+
+/* ---------- cycle 029: collapsible page list, growing text box, panel links ---------- */
+.side-toggle { display: none; }
+@media (min-width: 781px) {
+  .side-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 34px;
+    padding: 4px 12px;
+    margin-block-end: 4px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    background-image: none;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .side-toggle svg { transition: transform var(--tr); }
+  .side-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .side-nav.collapsed { display: none; }
+}
+.composer textarea { resize: none; max-height: min(40vh, 280px); overflow-y: auto; }
+a.panel-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+a.panel-link:hover { background: var(--accent-ring); }
+.composer form .send-btn,
+.composer form .attach-btn { align-self: flex-end; }

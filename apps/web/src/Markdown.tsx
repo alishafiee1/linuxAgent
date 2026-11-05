@@ -3,7 +3,14 @@ import type { ReactNode } from "react";
 // A small Markdown subset for bot replies. It builds React nodes and never injects HTML,
 // so a bot (or a page it read) cannot run script in the panel.
 
-const INLINE = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*|__[^_\n]+?__)|(\*[^*\s][^*\n]*?\*)|(\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/;
+const INLINE = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*|__[^_\n]+?__)|(\*[^*\s][^*\n]*?\*)|(\[[^\]\n]+\]\((?:https?:\/\/|#\/)[^\s)]+\))/;
+
+/** A link to a page of this panel ("#/settings", or the same address with the panel's own host) opens in place. */
+function panelHash(href: string): string | null {
+  if (href.startsWith("#/")) return href;
+  const own = `${location.origin}/#/`;
+  return href.startsWith(own) ? href.slice(location.origin.length + 1) : null;
+}
 
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -22,10 +29,17 @@ function inline(text: string): ReactNode[] {
     else if (m[3]) out.push(<em key={key++}>{inline(token.slice(1, -1))}</em>);
     else {
       const link = /^\[([^\]]+)\]\((.+)\)$/.exec(token)!;
+      const inside = panelHash(link[2]!);
       out.push(
-        <a key={key++} href={link[2]} target="_blank" rel="noopener noreferrer">
-          {link[1]}
-        </a>,
+        inside ? (
+          <a key={key++} href={inside} className="panel-link">
+            {link[1]}
+          </a>
+        ) : (
+          <a key={key++} href={link[2]} target="_blank" rel="noopener noreferrer">
+            {link[1]}
+          </a>
+        ),
       );
     }
     rest = rest.slice(m.index + token.length);

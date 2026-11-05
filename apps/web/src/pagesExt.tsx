@@ -180,6 +180,8 @@ export function LiveBrowser({ botId, vault: given }: { botId: string; vault: Vau
   // Size of the frame on screen in page pixels. Kept here because the image element reads 0 while a new frame loads.
   const size = useRef({ width: 0, height: 0 });
   const running = status?.running ?? false;
+  // The start page is a "data:" address; it is long and means nothing to read.
+  const shownUrl = status?.url?.startsWith("data:") ? "" : (status?.url ?? "");
 
   const load = useCallback(() => api.get<BrowserStatus>(`/api/browser/${botId}`).then(setStatus, () => {}), [botId]);
   useEffect(() => {
@@ -269,18 +271,24 @@ export function LiveBrowser({ botId, vault: given }: { botId: string; vault: Vau
         className="row"
         onSubmit={(e) => {
           e.preventDefault();
-          if (url.trim()) send({ type: "navigate", url: url.trim() });
+          if (url.trim()) {
+            send({ type: "navigate", url: url.trim() });
+            setUrl("");
+          }
         }}
       >
-        <input dir="ltr" style={{ flex: 1 }} placeholder={status.url ?? "https://"} value={url} onChange={(e) => setUrl(e.target.value)} />
+        <input dir="ltr" style={{ flex: 1 }} placeholder={shownUrl || t.browserAddressHint} value={url} onChange={(e) => setUrl(e.target.value)} enterKeyHint="go" autoCapitalize="off" autoCorrect="off" />
         <button>{t.go}</button>
         <button type="button" className="danger" onClick={() => void run(() => api.post(`/api/browser/${botId}/close`).then(load), "")}>
           {t.browserClose}
         </button>
       </form>
-      <div className="muted" dir="ltr" style={{ textAlign: "start", overflowWrap: "anywhere" }}>
-        {status.title} — {status.url}
-      </div>
+      <Note msg={msg} />
+      {shownUrl && (
+        <div className="muted" dir="ltr" style={{ textAlign: "start", overflowWrap: "anywhere" }}>
+          {status.title} — {shownUrl}
+        </div>
+      )}
       <img
         ref={img}
         className="browser-frame"

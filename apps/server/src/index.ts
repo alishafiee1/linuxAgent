@@ -20,6 +20,7 @@ import { UploadService } from "./uploads.js";
 import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
 import { ModelCatalogService } from "./models.js";
+import { panelLinksPrompt } from "./panelLinks.js";
 import { PushService } from "./push.js";
 import { ProxyService } from "./proxy/service.js";
 import { EventStore } from "./runs/events.js";
@@ -75,7 +76,7 @@ const orchestrator: Orchestrator = new Orchestrator({
   agentHome: config.agentHome,
   networkUp: () => proxy.isUp(),
   requests,
-  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor()].filter(Boolean).join("\n\n"),
+  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor(), panelLinksPrompt()].filter(Boolean).join("\n\n"),
   toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms, uploads, routines }, ctx),
   mcpServersFor: (bot) => browser.mcpServers(bot),
   policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),

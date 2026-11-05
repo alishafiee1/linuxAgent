@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { HttpError, type BotService } from "../bots.js";
+import { START_PAGE_URL, toBrowserUrl } from "./address.js";
 import type { McpStdioServer } from "../engine/types.js";
 import type { AgentFiles } from "../knowledge.js";
 import type { VaultService } from "../vault.js";
@@ -133,7 +134,7 @@ export class BrowserService {
       "--no-first-run",
       "--no-default-browser-check",
       ...(this.d.extraArgs ?? []),
-      "about:blank",
+      START_PAGE_URL,
     ];
     const [bin, ...pre] = this.d.agentExec.length ? [...this.d.agentExec, "env", this.d.chromium] : [this.d.chromium];
     const child = spawn(bin!, [...pre, ...args], { stdio: "ignore", detached: true });
@@ -201,8 +202,9 @@ export class BrowserService {
         return;
       }
       case "navigate": {
-        if (!/^https?:\/\//i.test(i.url)) throw new HttpError(400, "bad_url", "آدرس باید با http یا https شروع شود.");
-        await this.page(botId, [{ method: "Page.navigate", params: { url: i.url } }]);
+        const url = toBrowserUrl(i.url);
+        if (!url) throw new HttpError(400, "bad_url", "این نوع آدرس باز نمی‌شود؛ آدرس سایت یا یک عبارت جست‌وجو بنویسید.");
+        await this.page(botId, [{ method: "Page.navigate", params: { url } }]);
         return;
       }
     }

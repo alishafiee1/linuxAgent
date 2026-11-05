@@ -6,7 +6,7 @@ import { BotAvatar } from "./avatars";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
 import { ConnectionsPage } from "./connections";
-import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconChevronDown, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { FilesPage, SettingsPage, UsagePage } from "./pages";
 import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
@@ -25,6 +25,13 @@ type View = "chat" | "connections" | "routines" | "knowledge" | "browser" | "pag
 /** Desktop shows all of them in the side list. The phone bar keeps the four used most; the rest sit under "more". */
 const VIEWS: View[] = ["chat", "routines", "connections", "knowledge", "browser", "pages", "usage", "files", "settings"];
 const PHONE_BAR: View[] = ["chat", "routines", "files", "settings"];
+
+/** `#/settings`, or `#/chat/<bot id>/<conversation id>`: the address of a panel page, so a bot or a message can link to it. */
+function parseHash(): { view: View; bot: string | null; conversation: string | null } | null {
+  const [page, bot, conversation] = location.hash.replace(/^#\/?/, "").split("/");
+  const view = VIEWS.find((v) => v === page);
+  return view ? { view, bot: bot || null, conversation: conversation || null } : null;
+}
 
 const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   chat: IconChat,
@@ -160,8 +167,15 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
 function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, lang, setLang } = useT();
   // A link in a Bale or Telegram message opens the page that holds the waiting card.
-  const [view, setView] = useState<View>("chat");
+  const [view, setView] = useState<View>(() => parseHash()?.view ?? "chat");
   const [more, setMore] = useState(false);
+  const [pagesOpen, setPagesOpen] = useState(() => {
+    try {
+      return localStorage.getItem("cwp.pages") !== "0";
+    } catch {
+      return true;
+    }
+  });
   const [bots, setBots] = useState<Bot[]>([]);
   const [botId, setBotId] = useState<string | null>(() => {
     try {
@@ -233,6 +247,32 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   const bot = bots.find((b) => b.id === botId) ?? null;
   const runs = status?.runs;
+  useEffect(() => {
+    try {
+      localStorage.setItem("cwp.pages", pagesOpen ? "1" : "0");
+    } catch {
+      // private mode
+    }
+  }, [pagesOpen]);
+  // The address bar follows the page, and a pasted or clicked panel link moves the page.
+  useEffect(() => {
+    const want = `#/${view}`;
+    if (!location.hash.startsWith(want)) history.pushState(null, "", want);
+  }, [view]);
+  useEffect(() => {
+    const onHash = () => {
+      const h = parseHash();
+      if (!h) return;
+      setView(h.view);
+      if (h.bot) setBotId(h.bot);
+      setOpenConversation(h.conversation);
+      setMore(false);
+      setDrawer(false);
+    };
+    window.addEventListener("hashchange", onHash);
+    onHash();
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]);
   const go = (v: View) => {
     setView(v);
@@ -299,7 +339,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </span>
           {t.appName}
         </span>
-        <nav className="side-nav" aria-label={t.menu}>
+        <button className="side-toggle" aria-expanded={pagesOpen} onClick={() => setPagesOpen(!pagesOpen)}>
+          <span>{pagesOpen ? t.navPages : `${t.navPages} · ${label(view)}`}</span>
+          <IconChevronDown size={14} />
+        </button>
+        <nav className={`side-nav${pagesOpen ? "" : " collapsed"}`} aria-label={t.menu}>
           {VIEWS.map((v) => {
             const NavIcon = NAV_ICONS[v];
             return (
