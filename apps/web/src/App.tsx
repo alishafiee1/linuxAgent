@@ -9,7 +9,7 @@ import { ConnectionsPage } from "./connections";
 import { IconActivity, IconBot, IconChat, IconChevronDown, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
 import { FilesPage, SettingsPage, UsagePage } from "./pages";
-import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
+import { BrowserPage, KnowledgePage, SharedPagesPage, VaultPage } from "./pagesExt";
 import { RoutinesPage } from "./routines";
 
 export interface Status {
@@ -20,10 +20,10 @@ export interface Status {
   lowDiskMessage: string | null;
 }
 
-type View = "chat" | "connections" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
+type View = "chat" | "connections" | "routines" | "knowledge" | "browser" | "vault" | "pages" | "usage" | "files" | "settings";
 
 /** Desktop shows all of them in the side list. The phone bar keeps the four used most; the rest sit under "more". */
-const VIEWS: View[] = ["chat", "routines", "connections", "knowledge", "browser", "pages", "usage", "files", "settings"];
+const VIEWS: View[] = ["chat", "routines", "connections", "knowledge", "browser", "vault", "pages", "usage", "files", "settings"];
 const PHONE_BAR: View[] = ["chat", "routines", "files", "settings"];
 
 /** `#/settings`, or `#/chat/<bot id>/<conversation id>`: the address of a panel page, so a bot or a message can link to it. */
@@ -39,6 +39,7 @@ const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   routines: IconClock,
   knowledge: IconBot,
   browser: IconGlobe,
+  vault: IconShield,
   pages: IconInbox,
   usage: IconGauge,
   files: IconFolder,
@@ -128,6 +129,7 @@ function Login({ onDone }: { onDone: (m: Me) => void }) {
             <IconTerminal size={22} />
           </span>
           <h1>{t.appName}</h1>
+          <p className="login-sub">{t.loginSub}</p>
         </div>
         <label>
           {t.username}
@@ -273,7 +275,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     onHash();
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]);
+  const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : v === "vault" ? t.vault : t[v]);
   const go = (v: View) => {
     setView(v);
     setMore(false);
@@ -436,6 +438,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           />}
         {view === "knowledge" && <KnowledgePage />}
         {view === "browser" && <BrowserPage bots={bots} />}
+        {view === "vault" && <VaultPage />}
         {view === "pages" && <SharedPagesPage />}
         {view === "usage" && <UsagePage />}
         {view === "files" && <FilesPage />}

@@ -347,14 +347,12 @@ export function BrowserPage({ bots }: { bots: Bot[] }) {
   const capable = bots.filter((b) => b.browser);
   const [botId, setBotId] = useState("");
   const [vault, setVault] = useState<VaultItem[]>([]);
-  const [form, setForm] = useState({ name: "", username: "", secret: "", site: "" });
-  const [msg, run] = useMsg();
   const loadVault = useCallback(() => api.get<VaultItem[]>("/api/vault").then(setVault, () => {}), []);
   useEffect(() => void loadVault(), [loadVault]);
   const current = capable.find((b) => b.id === botId)?.id ?? capable[0]?.id ?? "";
 
   return (
-    <div className="page cols">
+    <div className="page">
       <h2>{t.browser}</h2>
       <div className="card section">
         <h3>
@@ -376,6 +374,21 @@ export function BrowserPage({ bots }: { bots: Bot[] }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+export function VaultPage() {
+  const { t } = useT();
+  const [vault, setVault] = useState<VaultItem[]>([]);
+  const [form, setForm] = useState({ name: "", username: "", secret: "", site: "" });
+  const [msg, run] = useMsg();
+  const loadVault = useCallback(() => api.get<VaultItem[]>("/api/vault").then(setVault, () => {}), []);
+  useEffect(() => void loadVault(), [loadVault]);
+
+  return (
+    <div className="page">
+      <h2>{t.vault}</h2>
       <div className="card section">
         <h3>
           <IconShield size={16} />

@@ -534,7 +534,7 @@ describe.skipIf(!available)("panel end to end", () => {
     for (const viewport of [{ width: 1400, height: 900 }, { width: 390, height: 800 }]) {
       const p = await signIn(viewport);
       const count = await p.locator(".side-nav button").count();
-      expect(count).toBe(9);
+      expect(count).toBe(10);
       for (let i = 0; i < count; i++) {
         await p.locator(".side-nav button").nth(i).evaluate((b: HTMLElement) => b.click());
         await p.waitForTimeout(150);

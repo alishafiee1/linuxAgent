@@ -3524,3 +3524,59 @@ body { background: var(--bg); }
   .messages { padding-inline: 24px; }
   .composer { border-block-start: 1px solid var(--border); background: transparent; box-shadow: none; }
 }
+
+/* ======================================================================
+   Cycle 033: the shared look of the new design, for every page at once.
+   Flat surfaces, 12px buttons and fields, 16px cards, a big plain page title.
+   ====================================================================== */
+:root,
+:root:not([data-theme="light"]),
+:root[data-theme="dark"] { --hi: transparent; }
+
+/* bots: the picture sits on the left of the name */
+.bot-item { flex-direction: row-reverse; justify-content: space-between; }
+.bot-item .bot-name { flex: 1; min-width: 0; text-align: start; }
+
+/* page title and subtitle */
+.page h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.page h2::before { display: none; }
+.page > p.muted,
+.page > .row + p.muted { margin-block: 0 18px; max-width: 640px; font-size: 14px; color: var(--muted); }
+
+/* buttons: flat, rounded, a little taller */
+button { border-radius: 12px; min-height: 40px; padding-inline: 16px; }
+button.primary { background: var(--accent); background-image: none; border-color: transparent; box-shadow: none; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: transparent; box-shadow: none; transform: none; }
+:root[data-theme="dark"] button.primary { background: var(--accent); background-image: none; box-shadow: none; }
+button:hover:not(:disabled) { transform: none; }
+.icon-btn { width: 40px; padding: 6px; }
+
+/* fields */
+input,
+textarea,
+select { border-radius: 12px; min-height: 44px; border-color: var(--border-strong); }
+textarea { min-height: 88px; }
+
+/* cards and empty pages */
+.card,
+.section { border-radius: 16px; background-image: none; }
+.section { padding: 20px; }
+.empty { border: 1px dashed var(--border-strong); border-radius: 16px; background: color-mix(in srgb, var(--surface) 60%, transparent); padding: 48px 24px; }
+
+/* the explanation line above a page's cards */
+.help-box { border-radius: 16px; background: var(--accent-soft); border: 0; color: var(--text); }
+
+/* ======================================================================
+   Cycle 033: login like the new design, and a few finishing touches.
+   ====================================================================== */
+.login .brand-mark.lg { width: 64px; height: 64px; border-radius: 24px; box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 32%, transparent); }
+.login-head h1 { font-size: 24px; font-weight: 800; }
+.login-sub { margin: 0; color: var(--muted); font-size: 14px; }
+.login .card { width: min(400px, 94vw); padding: 28px 24px 24px; border-radius: 24px; background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.login input { height: 48px; border-radius: 12px; }
+.login input[inputmode="numeric"] { font-size: 18px; letter-spacing: 0.4em; }
+.login .primary { height: 48px; font-size: 16px; font-weight: 700; border-radius: 12px; }
+
+/* a title that has a line of explanation under it gets some air */
+.page > .row { align-items: flex-start; margin-block-end: 6px; }
+.page > .row > h2 { margin: 0; }

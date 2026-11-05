@@ -28,6 +28,6 @@ describe("browser address bar (R1, R2)", () => {
 describe("panel links for bots (R3)", () => {
   it("lists every page as a link that opens inside the panel", () => {
     const p = panelLinksPrompt();
-    for (const page of ["chat", "routines", "connections", "knowledge", "browser", "pages", "usage", "files", "settings"]) expect(p).toContain(`(#/${page})`);
+    for (const page of ["chat", "routines", "connections", "knowledge", "browser", "vault", "pages", "usage", "files", "settings"]) expect(p).toContain(`(#/${page})`);
   });
 });
