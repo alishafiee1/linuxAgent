@@ -3654,3 +3654,71 @@ textarea { min-height: 88px; }
 .rt-page .rt-maker { width: 40px; height: 40px; border-radius: 14px; }
 .rt-page .rt-panel { background: var(--surface); border-radius: 16px; }
 .rt-page .rt-head { display: none; }
+
+/* ---------- card pages, like the reference (cycle 034) ---------- */
+.pg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-block-end: 18px; }
+.pg-top h2 { margin: 0; }
+.pg-top p { margin: 4px 0 0; max-width: 560px; font-size: 14px; color: var(--muted); }
+.pg-search { margin-block-end: 16px; }
+.pg-select { width: auto; min-width: 160px; }
+.info-banner { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 16px; padding: 12px 16px; border-radius: 16px; background: var(--accent-soft); color: var(--text); font-size: 14px; line-height: 1.7; }
+.info-banner svg { margin-block-start: 4px; flex: none; color: var(--accent); }
+
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; align-items: start; }
+.svc-card { padding: 18px; display: grid; gap: 14px; }
+.svc-head { display: flex; align-items: flex-start; gap: 12px; }
+.svc-icon { width: 44px; height: 44px; border-radius: 16px; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--accent); font-size: 18px; font-weight: 700; }
+.svc-title { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.svc-title h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.svc-sub { width: 100%; font-size: 12px; color: var(--muted); font-weight: 400; }
+.svc-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 600; }
+.svc-badge.on { background: color-mix(in srgb, var(--good) 12%, transparent); color: var(--good); }
+.svc-guide summary { cursor: pointer; padding-block: 6px; color: var(--accent); font-size: 14px; font-weight: 600; list-style: none; }
+.svc-guide summary::-webkit-details-marker { display: none; }
+.svc-guide summary::after { content: " ▾"; }
+.svc-guide[open] summary::after { content: " ▴"; }
+.svc-guide ol { margin: 6px 0 0; padding-inline-start: 22px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.8; color: var(--muted); list-style: decimal; }
+.svc-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-block-start: 12px; border-block-start: 1px solid var(--border); }
+.svc-actions .btn-link { display: inline-flex; align-items: center; min-height: 40px; padding-inline: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 13.5px; }
+.vault-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--surface-3); font-size: 14px; }
+.vault-line span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.vault-form { margin-block-end: 16px; }
+
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin-block-end: 12px; font-size: 14px; color: var(--muted); }
+.crumbs button { min-height: 32px; padding-inline: 8px; }
+.crumb { display: inline-flex; align-items: center; gap: 2px; }
+.files-list { padding: 8px; display: grid; gap: 2px; }
+.files-row { display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; min-height: 56px; padding: 8px 12px; border-radius: 14px; border-color: transparent; background: transparent; text-align: start; color: var(--text); }
+.files-row:hover:not(:disabled) { background: var(--accent-soft); }
+.files-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--muted); }
+.files-icon.dir { background: var(--accent-soft); color: var(--accent); }
+.files-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.5; }
+.files-text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files-text small { font-size: 12px; font-weight: 400; color: var(--muted); }
+a.files-row { text-decoration: none; }
+
+/* ---------- usage, like the reference (cycle 034) ---------- */
+.usage-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-block-end: 8px; }
+.usage-card { padding: 18px; display: grid; gap: 12px; margin-block-end: 16px; }
+.usage-top .usage-card { margin-block-end: 0; }
+.usage-card h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.usage-card h3 svg { color: var(--accent); }
+.usage-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.usage-status { font-size: 12px; color: var(--muted); }
+.usage-big { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.usage-bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.usage-bar span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.plan-limit.limited .usage-bar span, .plan-limit.rejected .usage-bar span { background: var(--bad); }
+.plan-limit.allowed_warning .usage-bar span { background: var(--warn); }
+.usage-meta { margin: 0; font-size: 12px; min-height: 1em; }
+.usage-note { margin: 0 0 16px; font-size: 12.5px; line-height: 1.7; }
+.usage-shares { display: grid; gap: 14px; }
+.usage-share-head { display: flex; align-items: baseline; gap: 10px; margin-block-end: 6px; font-size: 14px; }
+.usage-share-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-table { padding: 0; overflow: hidden; }
+.usage-table h3 { padding: 18px 18px 0; }
+.usage-table .table-wrap { overflow-x: auto; }
+.cost-cell { display: inline-flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.cost-bar { width: 90px; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.cost-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.info-banner.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); }

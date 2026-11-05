@@ -452,7 +452,7 @@ function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
         {view === "knowledge" && <KnowledgePage />}
         {view === "browser" && <BrowserPage bots={bots} />}
         {view === "vault" && <VaultPage />}
-        {view === "pages" && <SharedPagesPage />}
+        {view === "pages" && <SharedPagesPage bots={bots} />}
         {view === "usage" && <UsagePage />}
         {view === "files" && <FilesPage />}
         {view === "settings" && <SettingsPage proxy={status?.proxy ?? null} onSaved={loadStatus} />}

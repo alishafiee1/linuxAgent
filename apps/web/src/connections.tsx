@@ -1,10 +1,8 @@
-import type { ConnectionPayload, PlatformCategory, PlatformInfo } from "@linux-agent/shared";
+import type { ConnectionPayload, PlatformInfo } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "./api";
-import { IconCheck, IconGlobe, IconPlus, IconX } from "./icons";
+import { IconCheck, IconGlobe, IconPlus, IconShield, IconX } from "./icons";
 import { useT } from "./i18n";
-
-const CATEGORIES: PlatformCategory[] = ["communication", "code", "work", "ai", "custom"];
 
 /** Enters a key, saves it encrypted, then tries it, so a wrong key shows up at once. */
 export function ConnectForm({ platform, onConnected }: { platform: PlatformInfo; onConnected: () => void }) {
@@ -148,54 +146,66 @@ export function ConnectionsPage() {
   };
   return (
     <div className="page wide">
-      <div className="row">
-        <h2 style={{ margin: 0 }}>{t.connections}</h2>
-        <span className="spacer" />
+      <header className="pg-top">
+        <div>
+          <h2>{t.connections}</h2>
+          <p>{t.connectionsHelp}</p>
+        </div>
         <button onClick={() => setOpen("custom")}>
           <IconPlus size={14} />
           {t.addCustom}
         </button>
-      </div>
-      <p className="muted">{t.connectionsHelp}</p>
-      <input dir="auto" placeholder={t.searchPlatforms} aria-label={t.searchPlatforms} value={search} onChange={(e) => setSearch(e.target.value)} />
-      {CATEGORIES.map((c) => {
-        const items = shown.filter((p) => p.category === c);
-        if (!items.length) return null;
-        return (
-          <section key={c} style={{ marginTop: 18 }}>
-            <h3 className="platform-group">{t.platformCategories[c]}</h3>
-            <div className="platform-grid">
-              {items.map((p) => (
-                <div key={p.id} className="platform card">
-                  <span className="avatar">{p.name.slice(0, 1).toUpperCase()}</span>
-                  <strong dir="auto">{p.name}</strong>
-                  <span className="spacer" />
-                  {p.connected ? (
-                    <>
-                      <span className="ok connected-mark">
-                        <IconCheck size={14} />
-                        {t.connected}
-                      </span>
-                      <button
-                        className="ghost icon-btn"
-                        title={t.disconnect}
-                        aria-label={`${t.disconnect}: ${p.name}`}
-                        onClick={() => {
-                          if (confirm(`${p.name}\n\n${t.confirmDisconnect}`)) void api.del(`/api/platforms/${p.id}`).then(load, () => {});
-                        }}
-                      >
-                        <IconX size={14} />
-                      </button>
-                    </>
-                  ) : (
-                    <button onClick={() => setOpen(p)}>{t.connect}</button>
-                  )}
-                </div>
-              ))}
+      </header>
+      <p className="info-banner">
+        <IconShield size={16} />
+        {t.secretNote}
+      </p>
+      <input dir="auto" className="pg-search" placeholder={t.searchPlatforms} aria-label={t.searchPlatforms} value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="svc-grid">
+        {shown.map((p) => (
+          <article key={p.id} className="card svc-card">
+            <div className="svc-head">
+              <span className="svc-icon">{p.name.slice(0, 1).toUpperCase()}</span>
+              <div className="svc-title">
+                <h3 dir="auto">{p.name}</h3>
+                <span className={`svc-badge ${p.connected ? "on" : ""}`}>
+                  {p.connected && <IconCheck size={12} />}
+                  {p.connected ? t.connected : t.notConnected}
+                </span>
+              </div>
             </div>
-          </section>
-        );
-      })}
+            {p.steps.length > 0 && (
+              <details className="svc-guide">
+                <summary>{t.getKeyGuide}</summary>
+                <ol>
+                  {p.steps.map((s) => (
+                    <li key={s} dir="auto">
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
+            <div className="svc-actions">
+              {p.connected ? (
+                <button
+                  className="danger"
+                  onClick={() => {
+                    if (confirm(`${p.name}\n\n${t.confirmDisconnect}`)) void api.del(`/api/platforms/${p.id}`).then(load, () => {});
+                  }}
+                >
+                  <IconX size={14} />
+                  {t.disconnect}
+                </button>
+              ) : (
+                <button className="primary" onClick={() => setOpen(p)}>
+                  {t.connect}
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
       <dialog ref={dialog} onClose={() => setOpen(null)}>
         {open && (
           <div style={{ display: "grid", gap: 12 }}>

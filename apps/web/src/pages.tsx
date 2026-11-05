@@ -34,100 +34,131 @@ export function UsagePage() {
     api.get<UsageReport>("/api/usage").then(setReport, () => {});
   }, []);
   if (!report) return null;
-  const fmt = (n: number) => n.toLocaleString();
+  const fmt = (n: number) => n.toLocaleString(locale);
+  const pct = (n: number) => `${Math.round(n).toLocaleString(locale)}٪`;
+  const maxCost = Math.max(0.0001, ...report.rows.map((r) => r.costEstimateUsd));
   return (
-    <div className="page cols">
-      <h2>{t.usage}</h2>
-      {report.limit.waiting && (
-        <div className="banner warn card" style={{ marginBottom: 12 }}>
-          {t.limitBanner} {report.limit.resetAt ? <Stamp iso={report.limit.resetAt} locale={locale} /> : "?"}
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.usage}</h2>
+          <p>{t.usageHelp}</p>
         </div>
+      </header>
+      {report.limit.waiting && (
+        <p className="info-banner warn">
+          {t.limitBanner} {report.limit.resetAt ? <Stamp iso={report.limit.resetAt} locale={locale} /> : "?"}
+        </p>
       )}
-      <div className="card section">
-        <h3>
-          <IconGauge size={16} />
-          {t.planLimits}
-        </h3>
-        {report.plan.length === 0 && <p className="muted">{t.planNone}</p>}
+      <div className="usage-top">
+        {report.plan.length === 0 && (
+          <article className="card usage-card">
+            <h3>
+              <IconGauge size={16} />
+              {t.planLimits}
+            </h3>
+            <p className="muted">{t.planNone}</p>
+          </article>
+        )}
         {report.plan.map((l) => {
           const percent = l.utilization === null ? null : Math.min(100, Math.round(l.utilization * 100));
           return (
-            <div key={l.type} className={`plan-limit ${l.status}`}>
-              <div className="row">
-                <strong>{t.planTypes[l.type] ?? l.type}</strong>
-                <span className="spacer" />
-                <span>{percent === null ? t.planNoFigure : <bdi dir="rtl">{`${percent.toLocaleString(locale)}٪`}</bdi>}</span>
+            <article key={l.type} className={`card usage-card plan-limit ${l.status}`}>
+              <div className="usage-card-head">
+                <h3>
+                  <IconGauge size={16} />
+                  {t.planTypes[l.type] ?? l.type}
+                </h3>
+                <span className="usage-status">{t.planStatus[l.status]}</span>
               </div>
+              <div className="usage-big">{percent === null ? t.planNoFigure : <bdi dir="rtl">{pct(percent)}</bdi>}</div>
               {percent !== null && (
-                <div className="upload-bar plan-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
+                <div className="usage-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
                   <span style={{ width: `${percent}%` }} />
                 </div>
               )}
-              <div className="muted plan-meta">
-                {t.planStatus[l.status]}
-                {l.resetsAt && (<> · {t.planResets}: <Stamp iso={l.resetsAt} locale={locale} /></>)}
-                <> · {t.planReported}: <Stamp iso={l.reportedAt} locale={locale} /></>
-              </div>
-            </div>
+              <p className="muted usage-meta">
+                {l.resetsAt && (
+                  <>
+                    {t.planResets}: <Stamp iso={l.resetsAt} locale={locale} />
+                  </>
+                )}
+              </p>
+            </article>
           );
         })}
-        <p className="muted plan-meta">{t.planHelp}</p>
-        <p className="muted plan-meta">
-          {t.panelTokens}: {t.fiveHours} {fmt(report.windows.fiveHours)} · {t.sevenDays} {fmt(report.windows.sevenDays)}
-        </p>
       </div>
+      <p className="muted usage-note">
+        {t.planHelp} {t.panelTokens}: {t.fiveHours} {fmt(report.windows.fiveHours)} · {t.sevenDays} {fmt(report.windows.sevenDays)}
+      </p>
       {report.top.length > 0 && (
-        <div className="card section">
-          <h3>{t.topUsage}</h3>
-          <p className="muted plan-meta">{t.topUsageHelp}</p>
-          {report.top.map((u) => (
-            <div key={u.conversationId} className="top-usage">
-              <div className="row nowrap">
-                <span className="upload-name" dir="auto" title={u.title}>
-                  {u.title}
-                </span>
-                <span className="muted">{u.botName}</span>
-                <bdi dir="rtl">{`${Math.round(u.share * 100).toLocaleString(locale)}٪`}</bdi>
+        <article className="card usage-card">
+          <h3>
+            <IconGauge size={16} />
+            {t.topUsage}
+          </h3>
+          <div className="usage-shares">
+            {report.top.map((u) => (
+              <div key={u.conversationId} className="usage-share">
+                <div className="usage-share-head">
+                  <b dir="auto" title={u.title}>
+                    {u.title}
+                  </b>
+                  <span className="muted">{u.botName}</span>
+                  <bdi dir="rtl">{pct(u.share * 100)}</bdi>
+                </div>
+                <div className="usage-bar">
+                  <span style={{ width: `${Math.round(u.share * 100)}%` }} />
+                </div>
               </div>
-              <div className="upload-bar">
-                <span style={{ width: `${Math.round(u.share * 100)}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </article>
       )}
       {report.rows.length === 0 ? (
         <div className="empty">
-          <IconGauge size={30} />
+          <div className="hub-emoji">📊</div>
           <p>{t.empty}</p>
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>{t.day}</th>
-              <th>{t.bot}</th>
-              <th>{t.runs}</th>
-              <th>{t.inputTokens}</th>
-              <th>{t.outputTokens}</th>
-              <th title={t.estimateNote}>{t.cost}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.rows.map((r) => (
-              <tr key={`${r.day}-${r.botId}`}>
-                <td>{r.day}</td>
-                <td>{r.botName}</td>
-                <td className="num">{fmt(r.runs)}</td>
-                <td className="num">{fmt(r.inputTokens)}</td>
-                <td className="num">{fmt(r.outputTokens)}</td>
-                <td className="num">${r.costEstimateUsd.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <article className="card usage-card usage-table">
+          <h3>{t.usageTable}</h3>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t.day}</th>
+                  <th>{t.bot}</th>
+                  <th>{t.runs}</th>
+                  <th>{t.inputTokens}</th>
+                  <th>{t.outputTokens}</th>
+                  <th title={t.estimateNote}>{t.cost}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.map((r) => (
+                  <tr key={`${r.day}-${r.botId}`}>
+                    <td>{r.day}</td>
+                    <td>{r.botName}</td>
+                    <td className="num">{fmt(r.runs)}</td>
+                    <td className="num">{fmt(r.inputTokens)}</td>
+                    <td className="num">{fmt(r.outputTokens)}</td>
+                    <td className="num">
+                      <span className="cost-cell">
+                        <span className="cost-bar">
+                          <span style={{ width: `${(r.costEstimateUsd / maxCost) * 100}%` }} />
+                        </span>
+                        ${r.costEstimateUsd.toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
       )}
-      <p className="muted" style={{ fontSize: 12 }}>
+      <p className="muted usage-note">
         {t.cost}: {t.estimateNote}
       </p>
     </div>
@@ -135,7 +166,7 @@ export function UsagePage() {
 }
 
 export function FilesPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [root, setRoot] = useState<"workspace" | "bots">("workspace");
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<FileEntry[]>([]);
@@ -148,14 +179,17 @@ export function FilesPage() {
     });
   }, [root, path]);
   const up = path.split("/").slice(0, -1).join("/");
+  const parts = path ? path.split("/") : [];
   return (
     <div className="page wide">
-      <div className="row">
-        <h2 style={{ margin: 0 }}>{t.files}</h2>
-        <span className="spacer" />
+      <header className="pg-top">
+        <div>
+          <h2>{t.files}</h2>
+          <p>{t.filesHelp}</p>
+        </div>
         <select
           value={root}
-          style={{ width: "auto" }}
+          className="pg-select"
           onChange={(e) => {
             setRoot(e.target.value as "workspace" | "bots");
             setPath("");
@@ -164,58 +198,68 @@ export function FilesPage() {
           <option value="workspace">{t.workspace}</option>
           <option value="bots">{t.botsFolder}</option>
         </select>
-      </div>
-      <p className="muted" dir="ltr" style={{ textAlign: "start" }}>
-        /{path}
-      </p>
+      </header>
+      <nav className="crumbs" aria-label={t.files}>
+        <button className="ghost" onClick={() => setPath("")}>
+          <IconFolder size={14} />
+          {root === "workspace" ? t.workspace : t.botsFolder}
+        </button>
+        {parts.map((seg, i) => (
+          <span key={parts.slice(0, i + 1).join("/")} className="crumb">
+            /
+            <button className="ghost" onClick={() => setPath(parts.slice(0, i + 1).join("/"))}>
+              <bdi dir="ltr">{seg}</bdi>
+            </button>
+          </span>
+        ))}
+      </nav>
       {error && <div className="err">{error}</div>}
-      <table>
-        <tbody>
-          {path && (
-            <tr>
-              <td colSpan={3}>
-                <button className="ghost" onClick={() => setPath(up)}>
-                  <IconArrowUp size={14} />
-                  {t.up}
-                </button>
-              </td>
-            </tr>
-          )}
-          {entries.length === 0 && !error && (
-            <tr>
-              <td colSpan={3}>
-                <div className="empty slim">
-                  <IconFolder size={26} />
-                  <p>{t.empty}</p>
-                </div>
-              </td>
-            </tr>
-          )}
-          {entries.map((e) => (
-            <tr key={e.path}>
-              <td>
-                {e.type === "dir" ? (
-                  <button className="ghost" onClick={() => setPath(e.path)}>
-                    <IconFolder size={15} />
-                    <bdi dir="ltr">{e.name}</bdi>
-                  </button>
-                ) : (
-                  <span dir="ltr">{e.name}</span>
-                )}
-              </td>
-              <td className="num muted">{e.type === "file" ? <bdi dir="ltr">{`${(e.size / 1024).toFixed(1)} KB`}</bdi> : ""}</td>
-              <td>
-                {e.type === "file" && (
-                  <a className="dl" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
-                    <IconDownload size={14} />
-                    {t.download}
-                  </a>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="card files-list">
+        {path && (
+          <button className="files-row" onClick={() => setPath(up)}>
+            <span className="files-icon">
+              <IconArrowUp size={16} />
+            </span>
+            <span className="files-text">
+              <b>{t.up}</b>
+            </span>
+          </button>
+        )}
+        {entries.length === 0 && !error && (
+          <div className="empty slim">
+            <p>{t.empty}</p>
+          </div>
+        )}
+        {entries.map((e) =>
+          e.type === "dir" ? (
+            <button key={e.path} className="files-row" onClick={() => setPath(e.path)}>
+              <span className="files-icon dir">
+                <IconFolder size={18} />
+              </span>
+              <span className="files-text">
+                <b>
+                  <bdi dir="ltr">{e.name}</bdi>
+                </b>
+                <small>{new Date(e.mtime).toLocaleDateString(locale)}</small>
+              </span>
+            </button>
+          ) : (
+            <a key={e.path} className="files-row" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
+              <span className="files-icon">
+                <IconDownload size={17} />
+              </span>
+              <span className="files-text">
+                <b>
+                  <bdi dir="ltr">{e.name}</bdi>
+                </b>
+                <small>
+                  <bdi dir="ltr">{`${(e.size / 1024).toFixed(1)} KB`}</bdi> · {new Date(e.mtime).toLocaleDateString(locale)}
+                </small>
+              </span>
+            </a>
+          ),
+        )}
+      </div>
     </div>
   );
 }

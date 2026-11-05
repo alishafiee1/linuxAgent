@@ -1,6 +1,7 @@
 import type { Bot, BridgeDevice, BrowserStatus, MemoryFile, SharedPage, Skill, VaultItem } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { api } from "./api";
+import { BotAvatar } from "./avatars";
 import { IconFolder, IconGlobe, IconPencil, IconPlus, IconShield, IconTerminal, IconTrash } from "./icons";
 import { useT } from "./i18n";
 
@@ -382,46 +383,37 @@ export function VaultPage() {
   const { t } = useT();
   const [vault, setVault] = useState<VaultItem[]>([]);
   const [form, setForm] = useState({ name: "", username: "", secret: "", site: "" });
+  const [adding, setAdding] = useState(false);
   const [msg, run] = useMsg();
   const loadVault = useCallback(() => api.get<VaultItem[]>("/api/vault").then(setVault, () => {}), []);
   useEffect(() => void loadVault(), [loadVault]);
 
   return (
-    <div className="page">
-      <h2>{t.vault}</h2>
-      <div className="card section">
-        <h3>
-          <IconShield size={16} />
-          {t.vault}
-        </h3>
-        <p className="muted">{t.vaultHelp}</p>
-        {vault.map((v) => (
-          <div key={v.id} className="row">
-            <strong dir="auto">{v.name}</strong>
-            <span className="muted" dir="ltr">
-              {v.username ?? ""} {v.site ?? ""}
-            </span>
-            <span className="spacer" />
-            <button
-              className="ghost icon-btn danger"
-              title={t.delete}
-              aria-label={t.delete}
-              onClick={() => {
-                if (confirm(`${v.name}\n\n${t.confirmDeleteItem}`)) void run(() => api.del(`/api/vault/${v.id}`).then(loadVault), "");
-              }}
-            >
-              <IconTrash size={14} />
-            </button>
-          </div>
-        ))}
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.vault}</h2>
+          <p>{t.vaultHelp}</p>
+        </div>
+        <button className="primary" onClick={() => setAdding(!adding)}>
+          <IconPlus size={14} />
+          {t.vaultAdd}
+        </button>
+      </header>
+      <p className="info-banner">
+        <IconShield size={16} />
+        {t.vaultSafe}
+      </p>
+      {adding && (
         <form
-          style={{ display: "grid", gap: 10 }}
+          className="card section vault-form"
           autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault();
             void run(async () => {
               await api.post("/api/vault", form);
               setForm({ name: "", username: "", secret: "", site: "" });
+              setAdding(false);
               await loadVault();
             });
           }}
@@ -446,69 +438,115 @@ export function VaultPage() {
           </div>
           <div className="row">
             <button className="primary">{t.save}</button>
+            <button type="button" onClick={() => setAdding(false)}>
+              {t.cancel}
+            </button>
           </div>
         </form>
-        <Note msg={msg} />
-      </div>
+      )}
+      <Note msg={msg} />
+      {vault.length === 0 && !adding ? (
+        <div className="empty">
+          <div className="hub-emoji">🔐</div>
+          <p>{t.vaultEmpty}</p>
+        </div>
+      ) : (
+        <div className="svc-grid">
+          {vault.map((v) => (
+            <article key={v.id} className="card svc-card">
+              <div className="svc-head">
+                <span className="svc-icon">
+                  <IconGlobe size={18} />
+                </span>
+                <div className="svc-title">
+                  <h3 dir="auto">{v.name}</h3>
+                  {v.site && <bdi dir="ltr" className="svc-sub">{v.site}</bdi>}
+                </div>
+                <button
+                  className="ghost icon-btn danger"
+                  title={t.delete}
+                  aria-label={t.delete}
+                  onClick={() => {
+                    if (confirm(`${v.name}\n\n${t.confirmDeleteItem}`)) void run(() => api.del(`/api/vault/${v.id}`).then(loadVault), "");
+                  }}
+                >
+                  <IconTrash size={16} />
+                </button>
+              </div>
+              <div className="vault-line">
+                <span>{t.username}</span>
+                <bdi dir="ltr">{v.username || "—"}</bdi>
+              </div>
+              <div className="vault-line">
+                <span>{t.password}</span>
+                <bdi dir="ltr">••••••••••</bdi>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // --- shared pages
-export function SharedPagesPage() {
+export function SharedPagesPage({ bots }: { bots: Bot[] }) {
   const { t, locale } = useT();
   const [list, setList] = useState<SharedPage[]>([]);
   const [msg, run] = useMsg();
   const load = useCallback(() => api.get<SharedPage[]>("/api/pages").then(setList, () => {}), []);
   useEffect(() => void load(), [load]);
   return (
-    <div className="page">
-      <h2>{t.pages}</h2>
-      <p className="muted">{t.pagesHelp}</p>
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.pages}</h2>
+          <p>{t.pagesHelp}</p>
+        </div>
+      </header>
       <Note msg={msg} />
       {list.length === 0 ? (
         <div className="empty">
-          <IconFolder size={30} />
+          <div className="hub-emoji">📰</div>
           <p>{t.empty}</p>
         </div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <tbody>
-              {list.map((p) => (
-                <tr key={p.id}>
-                  <td dir="auto">{p.title}</td>
-                  <td>
-                    {p.url ? (
-                      <a dir="ltr" href={p.url} target="_blank" rel="noopener noreferrer">
-                        {t.openLink}
-                      </a>
-                    ) : (
-                      <span className="muted">{t.notShared}</span>
-                    )}
-                  </td>
-                  <td className="muted">{new Date(p.updatedAt).toLocaleString(locale)}</td>
-                  <td>
-                    <span className="row nowrap">
-                      <button className="ghost" onClick={() => void run(() => api.post(`/api/pages/${p.id}/share`, { shared: !p.url }).then(load), "")}>
-                        {p.url ? t.stopSharing : t.share}
-                      </button>
-                      <button
-                        className="ghost icon-btn danger"
-                        title={t.delete}
-                        aria-label={t.delete}
-                        onClick={() => {
-                          if (confirm(`${p.title}\n\n${t.confirmDeleteItem}`)) void run(() => api.del(`/api/pages/${p.id}`).then(load), "");
-                        }}
-                      >
-                        <IconTrash size={14} />
-                      </button>
+        <div className="svc-grid">
+          {list.map((p) => {
+            const bot = bots.find((b) => b.id === p.botId);
+            return (
+              <article key={p.id} className="card svc-card">
+                <div className="svc-head">
+                  {bot ? <BotAvatar bot={bot} size="md" /> : <span className="svc-icon"><IconFolder size={18} /></span>}
+                  <div className="svc-title">
+                    <h3 dir="auto">{p.title}</h3>
+                    <span className="svc-sub">
+                      {bot?.name ? `${bot.name} · ` : ""}
+                      {new Date(p.updatedAt).toLocaleDateString(locale)}
                     </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <span className={`svc-badge ${p.url ? "on" : ""}`}>{p.url ? t.pagesLinked : t.notShared}</span>
+                </div>
+                <div className="svc-actions">
+                  {p.url && (
+                    <a className="btn-link" href={p.url} target="_blank" rel="noopener noreferrer">
+                      {t.openLink}
+                    </a>
+                  )}
+                  <button onClick={() => void run(() => api.post(`/api/pages/${p.id}/share`, { shared: !p.url }).then(load), "")}>{p.url ? t.stopSharing : t.share}</button>
+                  <button
+                    className="danger"
+                    onClick={() => {
+                      if (confirm(`${p.title}\n\n${t.confirmDeleteItem}`)) void run(() => api.del(`/api/pages/${p.id}`).then(load), "");
+                    }}
+                  >
+                    <IconTrash size={14} />
+                    {t.delete}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
