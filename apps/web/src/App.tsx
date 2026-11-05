@@ -294,7 +294,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   };
 
   return (
-    <div className="layout">
+    <div className={`layout${pagesOpen ? " rail-open" : ""}`}>
       <header className="topbar">
         <button className="ghost icon-btn menu-btn" aria-label={t.menu} onClick={() => setDrawer(true)}>
           <IconMenu size={19} />
@@ -332,29 +332,36 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       </header>
 
       <div className={`scrim${drawer ? " show" : ""}`} onClick={() => setDrawer(false)} />
-      <aside className={`sidebar${drawer ? " open" : ""}`}>
-        <span className="brand side-brand">
+      <aside className="rail" aria-label={t.menu}>
+        <span className="brand rail-brand">
           <span className="brand-mark">
             <IconTerminal size={14} />
           </span>
-          {t.appName}
+          <span className="rail-label">{t.appName}</span>
         </span>
-        <button className="side-toggle" aria-expanded={pagesOpen} onClick={() => setPagesOpen(!pagesOpen)}>
-          <span>{pagesOpen ? t.navPages : `${t.navPages} · ${label(view)}`}</span>
-          <IconChevronDown size={14} />
-        </button>
-        <nav className={`side-nav${pagesOpen ? "" : " collapsed"}`} aria-label={t.menu}>
+        <nav className="side-nav" aria-label={t.navPages}>
           {VIEWS.map((v) => {
             const NavIcon = NAV_ICONS[v];
             return (
-              <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} onClick={() => go(v)}>
-                <NavIcon size={17} />
-                <span>{label(v)}</span>
+              <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} title={pagesOpen ? undefined : label(v)} onClick={() => go(v)}>
+                <NavIcon size={19} />
+                <span className="rail-label">{label(v)}</span>
               </button>
             );
           })}
         </nav>
-        <h2>{t.bots}</h2>
+        <button className="rail-toggle" aria-expanded={pagesOpen} aria-label={pagesOpen ? t.railCollapse : t.railExpand} title={pagesOpen ? t.railCollapse : t.railExpand} onClick={() => setPagesOpen(!pagesOpen)}>
+          <IconChevronDown size={16} />
+        </button>
+      </aside>
+      <aside className={`sidebar${drawer ? " open" : ""}`}>
+        <div className="bots-head">
+          <h2>{t.bots}</h2>
+          <span className="bots-count">{bots.length.toLocaleString(lang === "fa" ? "fa-IR" : "en")}</span>
+          <button className="ghost icon-btn" aria-label={t.newBot} title={t.newBot} onClick={() => setDialog({ bot: null })}>
+            <IconPlus size={16} />
+          </button>
+        </div>
         {bots.map((b) => (
           <div key={b.id} className="bot-row">
             <button

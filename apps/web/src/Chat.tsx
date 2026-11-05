@@ -88,8 +88,15 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    // The width can still be settling when the page opens (a menu sliding, a font loading), so measure again when it changes.
+    const watch = new ResizeObserver(fit);
+    if (el.parentElement) watch.observe(el.parentElement);
+    return () => watch.disconnect();
   }, [text]);
 
   const send = async (e?: FormEvent) => {
