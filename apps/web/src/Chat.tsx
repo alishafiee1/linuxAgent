@@ -203,7 +203,7 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
           <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
             <IconPaperclip size={17} />
           </button>
-          <textarea ref={box} rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
+          <textarea ref={box} rows={1} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
             <span className="send-label">{t.send}</span>
             <IconSend size={15} />

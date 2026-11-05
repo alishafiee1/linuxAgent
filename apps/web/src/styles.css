@@ -3208,3 +3208,6 @@ a.panel-link {
 a.panel-link:hover { background: var(--accent-ring); }
 .composer form .send-btn,
 .composer form .attach-btn { align-self: flex-end; }
+
+/* one line of text sits in the middle of the box, level with the buttons; more lines grow it */
+.composer textarea { padding-block: 11px; line-height: 22px; }
