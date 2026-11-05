@@ -122,9 +122,11 @@ export class ClaudeAgentEngine implements Engine {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 60_000);
     // A prompt stream that never yields keeps the process idle: only the control request is answered.
-    const idle = (async function* (): AsyncGenerator<never> {
-      await new Promise((_, rej) => ac.signal.addEventListener("abort", () => rej(new Error("timeout")), { once: true }));
-    })();
+    const idle: AsyncIterable<never> = {
+      [Symbol.asyncIterator]: () => ({
+        next: () => new Promise<IteratorResult<never>>((_, rej) => ac.signal.addEventListener("abort", () => rej(new Error("timeout")), { once: true })),
+      }),
+    };
     const q = query({
       prompt: idle,
       options: {

@@ -1,12 +1,11 @@
-import type { Approval, FileEntry, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
+import type { FileEntry, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
-import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconInbox, IconShield, IconSliders, IconX } from "./icons";
+import { IconArrowUp, IconBell, IconDownload, IconFolder, IconGauge, IconSliders } from "./icons";
 import { useT } from "./i18n";
 import { DevicesSection } from "./pagesExt";
 import { ProxyPanel } from "./proxyPanel";
 import { PushPanel } from "./pushPanel";
-import { PendingRequests } from "./requests";
 
 /** Plain words first; the exact input stays one click away for anyone who wants to check it. */
 export function ApprovalDetails({ summary, toolName, input }: { summary?: string; toolName: string; input: unknown }) {
@@ -25,84 +24,6 @@ export function ApprovalDetails({ summary, toolName, input }: { summary?: string
         </pre>
       </details>
     </>
-  );
-}
-
-export function ApprovalsPage({ activityTick }: { activityTick: number }) {
-  const { t, locale } = useT();
-  const [list, setList] = useState<Approval[]>([]);
-  const [error, setError] = useState("");
-  const load = useCallback(() => api.get<Approval[]>("/api/approvals").then(setList, (e: Error) => setError(e.message)), []);
-  useEffect(() => {
-    void load();
-  }, [load, activityTick]);
-  const decide = async (id: string, allow: boolean) => {
-    try {
-      await api.post(`/api/approvals/${id}/decide`, { allow });
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    void load();
-  };
-  const pending = list.filter((a) => a.state === "pending");
-  const past = list.filter((a) => a.state !== "pending").slice(0, 50);
-  return (
-    <div className="page">
-      <h2>{t.approvals}</h2>
-      {error && <div className="err">{error}</div>}
-      <PendingRequests activityTick={activityTick} />
-      {pending.length === 0 && (
-        <div className="empty">
-          <IconInbox size={30} />
-          <p>{t.noPending}</p>
-        </div>
-      )}
-      <div style={{ display: "grid", gap: 10 }}>
-        {pending.map((a) => (
-          <div key={a.id} className="approval" role="alert">
-            <div className="approval-head">
-              <span className="approval-ic">
-                <IconShield size={18} />
-              </span>
-              <strong>{a.botName}</strong>
-              <span className="muted">· {a.reason}</span>
-              <span className="spacer" />
-              <span className="muted"><Stamp iso={a.createdAt} locale={locale} /></span>
-            </div>
-            <ApprovalDetails summary={a.summary} toolName={a.toolName} input={a.input} />
-            <div className="row approval-actions">
-              <button className="primary" onClick={() => void decide(a.id, true)}>
-                <IconCheck size={16} />
-                {t.allow}
-              </button>
-              <button className="danger" onClick={() => void decide(a.id, false)}>
-                <IconX size={16} />
-                {t.deny}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {past.length > 0 && (
-        <table style={{ marginTop: 24 }}>
-          <tbody>
-            {past.map((a) => (
-              <tr key={a.id}>
-                <td>{a.botName}</td>
-                <td>
-                  <code>{a.toolName}</code>
-                </td>
-                <td>{a.reason}</td>
-                <td>
-                  {t.approvalStates[a.state]} {a.decidedByChannel ? `(${t.channels[a.decidedByChannel]})` : ""}
-                </td>
-                <td className="muted">{a.decidedAt ? <Stamp iso={a.decidedAt} locale={locale} /> : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
   );
 }
 

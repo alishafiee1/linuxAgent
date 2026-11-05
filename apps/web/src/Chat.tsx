@@ -145,7 +145,7 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
         </select>
         <button onClick={() => void newConversation()}>
           <IconPlus size={14} />
-          {t.newConversation}
+          <span className="btn-label">{t.newConversation}</span>
         </button>
       </div>
       <div className="messages" ref={messages}>
@@ -197,7 +197,7 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
           </button>
           <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
-            {t.send}
+            <span className="send-label">{t.send}</span>
             <IconSend size={15} />
           </button>
         </form>

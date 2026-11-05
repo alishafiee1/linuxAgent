@@ -3034,3 +3034,140 @@ button:active:not(:disabled) {
 .opt-refresh { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; }
 .opt-refresh button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 12.5px; }
 .opt-refresh small { color: var(--text-2); font-size: 11.5px; }
+
+/* ======================================================================
+   Cycle 028: one shell for phone and laptop.
+   Laptop: the page list and the bots sit in one side column, the top strip only shows status.
+   Phone: a bottom bar with the four most used pages and "more"; bots open from the menu button.
+   ====================================================================== */
+.side-brand { display: none; }
+.side-nav { display: none; }
+.bottom-nav,
+.sheet,
+.sheet-scrim { display: none; }
+
+.side-nav button,
+.bottom-nav button,
+.sheet-grid button {
+  background-image: none;
+  box-shadow: none;
+}
+
+@media (min-width: 781px) {
+  .layout {
+    grid-template-columns: 272px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "side top" "side main";
+  }
+  .sidebar { grid-area: side; padding: 16px 14px; gap: 4px; }
+  .topbar { grid-area: top; grid-column: auto; padding: 10px 20px; }
+  .main { grid-area: main; }
+  .topbar .brand,
+  .menu-btn { display: none; }
+
+  .side-brand { display: inline-flex; padding: 4px 8px 16px; font-size: 17px; }
+  .side-nav {
+    display: grid;
+    gap: 2px;
+    margin-block-end: 14px;
+    padding-block-end: 14px;
+    border-block-end: 1px solid var(--border);
+  }
+  .side-nav button {
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border-radius: var(--r-md);
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 14px;
+  }
+  .side-nav button:hover:not(:disabled) { background: var(--accent-soft); transform: none; }
+  .side-nav button.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .side-nav button:focus-visible,
+  .bottom-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+
+@media (max-width: 780px) {
+  .desk-only { display: none; }
+  .layout { box-sizing: border-box; padding-block-end: calc(68px + env(safe-area-inset-bottom)); }
+
+  .bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--glass);
+    border-block-start: 1px solid var(--border);
+    backdrop-filter: blur(18px) saturate(1.3);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  }
+  .bottom-nav button {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 54px;
+    padding: 4px 2px;
+    border-color: transparent;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .bottom-nav button.active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+
+  .sheet-scrim { display: block; position: fixed; inset: 0; z-index: 65; background: rgb(2 6 18 / 0.45); }
+  .sheet {
+    display: block;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 70;
+    max-height: 82vh;
+    overflow: auto;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    box-shadow: var(--shadow-pop);
+  }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-block-end: 12px; }
+  .sheet-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .sheet-grid button {
+    flex-direction: column;
+    gap: 7px;
+    min-height: 82px;
+    border-radius: var(--r-md);
+    background: var(--surface-2);
+    border-color: transparent;
+    font-size: 13px;
+  }
+  .sheet-grid button.active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+  .sheet-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-block-start: 14px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: sheet-up 220ms cubic-bezier(0.32, 0.72, 0.24, 1); }
+  @keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+
+/* phone: a compact chat header, chips that wrap instead of hiding, a round send button */
+@media (max-width: 780px) {
+  .chat-head { flex-wrap: nowrap; gap: 8px; }
+  .chat-head select { min-width: 0; flex: 1; }
+  .chat-head .av.lg { --s: 44px; }
+  .chat-head .btn-label { display: none; }
+  .chat-head > button { min-width: 44px; padding-inline: 12px; }
+  .tune { flex-wrap: wrap; overflow: visible; }
+  .send-btn { min-width: 46px; width: 46px; padding: 0; border-radius: 50%; }
+  .send-btn .send-label { display: none; }
+}
+
+/* bullet lists inside bot replies: padding on both sides so a left-to-right item keeps its marker inside the bubble */
+.md ul,
+.md ol { padding-inline: 1.5em; }

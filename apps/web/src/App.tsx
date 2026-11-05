@@ -6,9 +6,9 @@ import { BotAvatar } from "./avatars";
 import { BotDialog } from "./BotDialog";
 import { Chat } from "./Chat";
 import { ConnectionsPage } from "./connections";
-import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
-import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
+import { FilesPage, SettingsPage, UsagePage } from "./pages";
 import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
 import { RoutinesPage } from "./routines";
 
@@ -20,11 +20,14 @@ export interface Status {
   lowDiskMessage: string | null;
 }
 
-type View = "chat" | "approvals" | "connections" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
+type View = "chat" | "connections" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
+
+/** Desktop shows all of them in the side list. The phone bar keeps the four used most; the rest sit under "more". */
+const VIEWS: View[] = ["chat", "routines", "connections", "knowledge", "browser", "pages", "usage", "files", "settings"];
+const PHONE_BAR: View[] = ["chat", "routines", "files", "settings"];
 
 const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   chat: IconChat,
-  approvals: IconShield,
   connections: IconLink,
   routines: IconClock,
   knowledge: IconBot,
@@ -157,7 +160,8 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
 function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, lang, setLang } = useT();
   // A link in a Bale or Telegram message opens the page that holds the waiting card.
-  const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).has("inbox") ? "approvals" : "chat"));
+  const [view, setView] = useState<View>("chat");
+  const [more, setMore] = useState(false);
   const [bots, setBots] = useState<Bot[]>([]);
   const [botId, setBotId] = useState<string | null>(() => {
     try {
@@ -229,6 +233,25 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   const bot = bots.find((b) => b.id === botId) ?? null;
   const runs = status?.runs;
+  const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]);
+  const go = (v: View) => {
+    setView(v);
+    setMore(false);
+  };
+  // A bot waiting for an answer: its chat is where the question and the buttons are.
+  const openPending = () => {
+    const id = Object.keys(byBot).find((k) => (byBot[k]?.length ?? 0) > 0);
+    if (id) {
+      setBotId(id);
+      setOpenConversation(null);
+    }
+    go("chat");
+  };
+  const toggleLang = () => {
+    const next: UiLanguage = lang === "fa" ? "en" : "fa";
+    setLang(next);
+    void api.put("/api/settings", { uiLanguage: next }).catch(() => {});
+  };
 
   return (
     <div className="layout">
@@ -242,18 +265,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </span>
           {t.appName}
         </span>
-        <nav className="nav">
-          {(["chat", "approvals", "connections", "routines", "knowledge", "browser", "pages", "usage", "files", "settings"] as View[]).map((v) => {
-            const NavIcon = NAV_ICONS[v];
-            return (
-              <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
-                <NavIcon size={15} />
-                <span>{v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]}</span>
-                {v === "approvals" && status && status.pendingApprovals > 0 && ` (${status.pendingApprovals})`}
-              </button>
-            );
-          })}
-        </nav>
         <span className="spacer" />
         {runs && (
           <span className="pill runs-pill">
@@ -262,7 +273,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </span>
         )}
         {status && status.pendingApprovals > 0 && (
-          <button className="pill warn-pill" onClick={() => setView("approvals")}>
+          <button className="pill warn-pill" onClick={openPending}>
             <span className="dot warn" />
             <IconShield size={13} />
             {t.pending}: {status.pendingApprovals}
@@ -272,23 +283,33 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         <button className="ghost icon-btn" aria-label={t.themeToggle} title={t.themeToggle} onClick={toggleTheme}>
           {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
         </button>
-        <button
-          className="ghost"
-          onClick={() => {
-            const next: UiLanguage = lang === "fa" ? "en" : "fa";
-            setLang(next);
-            void api.put("/api/settings", { uiLanguage: next }).catch(() => {});
-          }}
-        >
+        <button className="ghost desk-only" onClick={toggleLang}>
           {lang === "fa" ? "EN" : "فا"}
         </button>
-        <button className="ghost" onClick={logout}>
+        <button className="ghost desk-only" onClick={logout}>
           {t.logout}
         </button>
       </header>
 
       <div className={`scrim${drawer ? " show" : ""}`} onClick={() => setDrawer(false)} />
       <aside className={`sidebar${drawer ? " open" : ""}`}>
+        <span className="brand side-brand">
+          <span className="brand-mark">
+            <IconTerminal size={14} />
+          </span>
+          {t.appName}
+        </span>
+        <nav className="side-nav" aria-label={t.menu}>
+          {VIEWS.map((v) => {
+            const NavIcon = NAV_ICONS[v];
+            return (
+              <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} onClick={() => go(v)}>
+                <NavIcon size={17} />
+                <span>{label(v)}</span>
+              </button>
+            );
+          })}
+        </nav>
         <h2>{t.bots}</h2>
         {bots.map((b) => (
           <div key={b.id} className="bot-row">
@@ -308,7 +329,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               <BotAvatar
                 bot={b}
                 busy={(byBot[b.id]?.length ?? 0) > 0}
-                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => { setView("approvals"); setDrawer(false); }} />}
+                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => { setBotId(b.id); setOpenConversation(null); go("chat"); setDrawer(false); }} />}
               />
               <span className="bot-name">{b.name}</span>
             </button>
@@ -347,12 +368,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               activityTick={activityTick}
               initialConversation={openConversation}
               onBotChanged={() => void loadBots()}
-              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => setView("approvals")} />}
+              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => go("chat")} />}
             />
           ) : (
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}
-        {view === "approvals" && <ApprovalsPage activityTick={activityTick} />}
         {view === "connections" && <ConnectionsPage />}
         {view === "routines" && <RoutinesPage
             bots={bots}
@@ -370,6 +390,52 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         {view === "files" && <FilesPage />}
         {view === "settings" && <SettingsPage proxy={status?.proxy ?? null} onSaved={loadStatus} />}
       </main>
+
+      <nav className="bottom-nav" aria-label={t.menu}>
+        {PHONE_BAR.map((v) => {
+          const NavIcon = NAV_ICONS[v];
+          return (
+            <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} onClick={() => go(v)}>
+              <NavIcon size={21} />
+              <span>{label(v)}</span>
+            </button>
+          );
+        })}
+        <button className={more || !PHONE_BAR.includes(view) ? "active" : ""} aria-expanded={more} onClick={() => setMore(!more)}>
+          <IconMenu size={21} />
+          <span>{t.more}</span>
+        </button>
+      </nav>
+      {more && (
+        <>
+          <div className="sheet-scrim" onClick={() => setMore(false)} />
+          <div className="sheet" role="dialog" aria-label={t.more}>
+            <div className="sheet-head">
+              <strong>{t.more}</strong>
+              <button className="ghost icon-btn" aria-label={t.closeMenu} onClick={() => setMore(false)}>
+                <IconX size={17} />
+              </button>
+            </div>
+            <div className="sheet-grid">
+              {VIEWS.filter((v) => !PHONE_BAR.includes(v)).map((v) => {
+                const NavIcon = NAV_ICONS[v];
+                return (
+                  <button key={v} className={view === v ? "active" : ""} onClick={() => go(v)}>
+                    <NavIcon size={22} />
+                    <span>{label(v)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="sheet-foot">
+              <button onClick={toggleLang}>{lang === "fa" ? "English" : "فارسی"}</button>
+              <button className="danger" onClick={logout}>
+                {t.logout}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {menu && (
         <div className="menu card" style={{ top: menu.y, left: Math.max(8, Math.min(menu.x, window.innerWidth - 178)) }}>
