@@ -176,7 +176,7 @@ async function signIn(viewport = { width: 1400, height: 900 }): Promise<Page> {
   await p.fill('input[type="password"]', login.password);
   await p.fill('input[autocomplete="one-time-code"]', authenticator.generate(login.secret));
   await p.click("button.primary");
-  await p.waitForSelector(".nav button", { state: "attached" });
+  await p.waitForSelector(".side-nav button", { state: "attached" });
   return p;
 }
 
@@ -189,7 +189,7 @@ const send = async (text: string): Promise<void> => {
   await page.locator(".composer textarea").fill(text);
   await page.locator(".composer button.primary").click();
 };
-const openPage = (name: string) => page.locator(".nav button", { hasText: name }).click();
+const openPage = (name: string) => page.locator(".side-nav button", { hasText: name }).click();
 
 describe.skipIf(!available)("panel end to end", () => {
   beforeEach(async () => {
@@ -232,7 +232,7 @@ describe.skipIf(!available)("panel end to end", () => {
     expect(text).toContain("فعال");
   });
 
-  it("shows waiting questions on the approvals page and from a notification link", async () => {
+  it("shows waiting questions in the chat, also when opened from a notification link", async () => {
     await send("ASK");
     await page.locator(".request-card").waitFor();
     const ctx = page.context();
@@ -533,10 +533,10 @@ describe.skipIf(!available)("panel end to end", () => {
   it("keeps every page inside the screen on desktop and phone", async () => {
     for (const viewport of [{ width: 1400, height: 900 }, { width: 390, height: 800 }]) {
       const p = await signIn(viewport);
-      const count = await p.locator(".nav button").count();
+      const count = await p.locator(".side-nav button").count();
       expect(count).toBe(10);
       for (let i = 0; i < count; i++) {
-        await p.locator(".nav button").nth(i).evaluate((b: HTMLElement) => b.click());
+        await p.locator(".side-nav button").nth(i).evaluate((b: HTMLElement) => b.click());
         await p.waitForTimeout(150);
         const over = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
         expect(over, `page ${i} at ${viewport.width}`).toBe(false);

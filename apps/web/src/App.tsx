@@ -1,13 +1,16 @@
 import type { Bot, Me, ProxyStatus, PublicSettings, UiLanguage } from "@linux-agent/shared";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ApprovalBadge, usePending } from "./approvalPop";
 import { api, ApiError } from "./api";
-import { BotDialog } from "./BotDialog";
+import { BotAvatar } from "./avatars";
+import { BotPage } from "./BotDialog";
 import { Chat } from "./Chat";
+import { ChatHub } from "./chatHub";
 import { ConnectionsPage } from "./connections";
-import { IconActivity, IconBot, IconChat, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconMenu, IconPencil, IconPlus, IconShield, IconSliders, IconTerminal, IconTrash, type IconProps } from "./icons";
+import { IconActivity, IconBot, IconChat, IconChevronDown, IconClock, IconFolder, IconGauge, IconGlobe, IconInbox, IconLink, IconLogout, IconMenu, IconMoon, IconPencil, IconPlus, IconShield, IconSliders, IconSun, IconTerminal, IconTrash, IconX, type IconProps } from "./icons";
 import { dictionaries, I18n, useT } from "./i18n";
-import { ApprovalsPage, FilesPage, SettingsPage, UsagePage } from "./pages";
-import { BrowserPage, KnowledgePage, SharedPagesPage } from "./pagesExt";
+import { FilesPage, SettingsPage, UsagePage } from "./pages";
+import { BrowserPage, KnowledgePage, SharedPagesPage, VaultPage } from "./pagesExt";
 import { RoutinesPage } from "./routines";
 
 export interface Status {
@@ -18,15 +21,26 @@ export interface Status {
   lowDiskMessage: string | null;
 }
 
-type View = "chat" | "approvals" | "connections" | "routines" | "knowledge" | "browser" | "pages" | "usage" | "files" | "settings";
+type View = "chat" | "connections" | "routines" | "knowledge" | "browser" | "vault" | "pages" | "usage" | "files" | "settings";
+
+/** Desktop shows all of them in the side list. The phone bar keeps the four used most; the rest sit under "more". */
+const VIEWS: View[] = ["chat", "routines", "connections", "knowledge", "browser", "vault", "pages", "usage", "files", "settings"];
+const PHONE_BAR: View[] = ["chat", "routines", "files", "settings"];
+
+/** `#/settings`, or `#/chat/<bot id>/<conversation id>`: the address of a panel page, so a bot or a message can link to it. */
+function parseHash(): { view: View; bot: string | null; conversation: string | null } | null {
+  const [page, bot, conversation] = location.hash.replace(/^#\/?/, "").split("/");
+  const view = VIEWS.find((v) => v === page);
+  return view ? { view, bot: bot || null, conversation: conversation || null } : null;
+}
 
 const NAV_ICONS: Record<View, (p: IconProps) => ReturnType<typeof IconChat>> = {
   chat: IconChat,
-  approvals: IconShield,
   connections: IconLink,
   routines: IconClock,
   knowledge: IconBot,
   browser: IconGlobe,
+  vault: IconShield,
   pages: IconInbox,
   usage: IconGauge,
   files: IconFolder,
@@ -47,6 +61,35 @@ function useLanguage(): [UiLanguage, (l: UiLanguage) => void] {
   return [lang, setLang];
 }
 
+type Theme = "light" | "dark";
+
+/** Follows the system until the user picks one; the pick is kept in this browser only. */
+function useTheme(): [Theme, () => void] {
+  const system = () => (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem("cwp.theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {
+      // private mode
+    }
+    return system();
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  const toggle = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try {
+      localStorage.setItem("cwp.theme", next);
+    } catch {
+      // private mode
+    }
+  };
+  return [theme, toggle];
+}
+
 export function App() {
   const [lang, setLang] = useLanguage();
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -59,7 +102,7 @@ export function App() {
   }, []);
 
   const ctx = useMemo(() => ({ t: dictionaries[lang], lang, setLang }), [lang, setLang]);
-  return <I18n.Provider value={ctx}>{me === undefined ? <div className="empty">…</div> : me === null ? <Login onDone={setMe} /> : <Shell onLogout={() => setMe(null)} />}</I18n.Provider>;
+  return <I18n.Provider value={ctx}>{me === undefined ? <div className="empty">…</div> : me === null ? <Login onDone={setMe} /> : <Shell me={me} onLogout={() => setMe(null)} />}</I18n.Provider>;
 }
 
 function Login({ onDone }: { onDone: (m: Me) => void }) {
@@ -87,6 +130,7 @@ function Login({ onDone }: { onDone: (m: Me) => void }) {
             <IconTerminal size={22} />
           </span>
           <h1>{t.appName}</h1>
+          <p className="login-sub">{t.loginSub}</p>
         </div>
         <label>
           {t.username}
@@ -123,10 +167,18 @@ function ProxyPill({ proxy }: { proxy: ProxyStatus | null }) {
   );
 }
 
-function Shell({ onLogout }: { onLogout: () => void }) {
+function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const { t, lang, setLang } = useT();
   // A link in a Bale or Telegram message opens the page that holds the waiting card.
-  const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).has("inbox") ? "approvals" : "chat"));
+  const [view, setView] = useState<View>(() => parseHash()?.view ?? "chat");
+  const [more, setMore] = useState(false);
+  const [pagesOpen, setPagesOpen] = useState(() => {
+    try {
+      return localStorage.getItem("cwp.pages") !== "0";
+    } catch {
+      return true;
+    }
+  });
   const [bots, setBots] = useState<Bot[]>([]);
   const [botId, setBotId] = useState<string | null>(() => {
     try {
@@ -141,6 +193,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [menu, setMenu] = useState<{ bot: Bot; x: number; y: number } | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [openConversation, setOpenConversation] = useState<string | null>(null);
+  // The chat page shows the bot cards until a bot is picked.
+  const [chatOpen, setChatOpen] = useState(() => !!parseHash()?.bot);
+  const [theme, toggleTheme] = useTheme();
+  const { byBot, reload: reloadPending } = usePending(activityTick);
 
   const loadBots = useCallback(async () => {
     const list = await api.get<Bot[]>("/api/bots");
@@ -196,9 +252,59 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   const bot = bots.find((b) => b.id === botId) ?? null;
   const runs = status?.runs;
+  useEffect(() => {
+    try {
+      localStorage.setItem("cwp.pages", pagesOpen ? "1" : "0");
+    } catch {
+      // private mode
+    }
+  }, [pagesOpen]);
+  // The address bar follows the page, and a pasted or clicked panel link moves the page.
+  useEffect(() => {
+    const want = view === "chat" && chatOpen && botId ? `#/chat/${botId}` : `#/${view}`;
+    if (!location.hash.startsWith(want)) history.pushState(null, "", want);
+  }, [view, chatOpen, botId]);
+  useEffect(() => {
+    const onHash = () => {
+      const h = parseHash();
+      if (!h) return;
+      setView(h.view);
+      if (h.view === "chat") setChatOpen(!!h.bot);
+      if (h.bot) setBotId(h.bot);
+      setOpenConversation(h.conversation);
+      setMore(false);
+      setDrawer(false);
+    };
+    window.addEventListener("hashchange", onHash);
+    onHash();
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const label = (v: View): string => (v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : v === "vault" ? t.vault : t[v]);
+  const go = (v: View, openBot = false) => {
+    setView(v);
+    if (v === "chat") setChatOpen(openBot);
+    setMore(false);
+  };
+  const openBotChat = (id: string, conversationId: string | null = null) => {
+    setBotId(id);
+    setOpenConversation(conversationId);
+    go("chat", true);
+    setDrawer(false);
+  };
+  // A bot waiting for an answer: its chat is where the question and the buttons are.
+  const openPending = () => {
+    const id = Object.keys(byBot).find((k) => (byBot[k]?.length ?? 0) > 0);
+    if (id) openBotChat(id);
+    else go("chat");
+  };
+  const toggleLang = () => {
+    const next: UiLanguage = lang === "fa" ? "en" : "fa";
+    setLang(next);
+    void api.put("/api/settings", { uiLanguage: next }).catch(() => {});
+  };
 
   return (
-    <div className="layout">
+    <div className={`layout${pagesOpen ? " rail-open" : ""}`}>
       <header className="topbar">
         <button className="ghost icon-btn menu-btn" aria-label={t.menu} onClick={() => setDrawer(true)}>
           <IconMenu size={19} />
@@ -209,18 +315,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </span>
           {t.appName}
         </span>
-        <nav className="nav">
-          {(["chat", "approvals", "connections", "routines", "knowledge", "browser", "pages", "usage", "files", "settings"] as View[]).map((v) => {
-            const NavIcon = NAV_ICONS[v];
-            return (
-              <button key={v} className={`ghost ${view === v ? "active" : ""}`} onClick={() => setView(v)}>
-                <NavIcon size={15} />
-                <span>{v === "knowledge" ? t.navKnowledge : v === "browser" ? t.navBrowser : t[v]}</span>
-                {v === "approvals" && status && status.pendingApprovals > 0 && ` (${status.pendingApprovals})`}
-              </button>
-            );
-          })}
-        </nav>
         <span className="spacer" />
         {runs && (
           <span className="pill runs-pill">
@@ -229,48 +323,71 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </span>
         )}
         {status && status.pendingApprovals > 0 && (
-          <button className="pill warn-pill" onClick={() => setView("approvals")}>
+          <button className="pill warn-pill" onClick={openPending}>
             <span className="dot warn" />
             <IconShield size={13} />
             {t.pending}: {status.pendingApprovals}
           </button>
         )}
         <ProxyPill proxy={status?.proxy ?? null} />
-        <button
-          className="ghost"
-          onClick={() => {
-            const next: UiLanguage = lang === "fa" ? "en" : "fa";
-            setLang(next);
-            void api.put("/api/settings", { uiLanguage: next }).catch(() => {});
-          }}
-        >
-          {lang === "fa" ? "EN" : "فا"}
+        <button className="ghost icon-btn" aria-label={t.themeToggle} title={t.themeToggle} onClick={toggleTheme}>
+          {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
         </button>
-        <button className="ghost" onClick={logout}>
-          {t.logout}
+        <button className="ghost desk-only" onClick={toggleLang}>
+          {lang === "fa" ? "EN" : "فا"}
         </button>
       </header>
 
       <div className={`scrim${drawer ? " show" : ""}`} onClick={() => setDrawer(false)} />
+      <aside className="rail" aria-label={t.menu}>
+        <span className="brand rail-brand">
+          <span className="brand-mark">
+            <IconTerminal size={14} />
+          </span>
+          <span className="rail-label">{t.appName}</span>
+        </span>
+        <nav className="side-nav" aria-label={t.navPages}>
+          {VIEWS.map((v) => {
+            const NavIcon = NAV_ICONS[v];
+            return (
+              <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} title={pagesOpen ? undefined : label(v)} onClick={() => go(v)}>
+                <NavIcon size={19} />
+                <span className="rail-label">{label(v)}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <button className="rail-toggle" aria-expanded={pagesOpen} aria-label={pagesOpen ? t.railCollapse : t.railExpand} title={pagesOpen ? t.railCollapse : t.railExpand} onClick={() => setPagesOpen(!pagesOpen)}>
+          <IconChevronDown size={16} />
+        </button>
+      </aside>
       <aside className={`sidebar${drawer ? " open" : ""}`}>
-        <h2>{t.bots}</h2>
+        <div className="bots-head">
+          <h2>{t.bots}</h2>
+          <span className="bots-count">{bots.length.toLocaleString(lang === "fa" ? "fa-IR" : "en")}</span>
+          <button className="ghost icon-btn" aria-label={t.newBot} title={t.newBot} onClick={() => setDialog({ bot: null })}>
+            <IconPlus size={16} />
+          </button>
+        </div>
         {bots.map((b) => (
           <div key={b.id} className="bot-row">
             <button
               className={`bot-item ${b.id === botId && view === "chat" ? "active" : ""}`}
-              onClick={() => {
-                setBotId(b.id);
-                setOpenConversation(null);
-                setView("chat");
-                setDrawer(false);
-              }}
+              onClick={() => openBotChat(b.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setMenu({ bot: b, x: e.clientX, y: e.clientY });
               }}
             >
-              <span className="avatar">{b.name.slice(0, 1).toUpperCase()}</span>
-              <span className="bot-name">{b.name}</span>
+              <BotAvatar
+                bot={b}
+                busy={(byBot[b.id]?.length ?? 0) > 0}
+                badge={<ApprovalBadge items={byBot[b.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => openBotChat(b.id)} />}
+              />
+              <span className="bot-name">
+                <b>{b.name}</b>
+                <small>{b.persona.split("\n")[0]}</small>
+              </span>
             </button>
             <button
               className="ghost bot-more"
@@ -289,35 +406,114 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           <IconPlus size={15} />
           {t.newBot}
         </button>
+        <div className="account">
+          <span className="account-mark">{me.username.slice(0, 2)}</span>
+          <span className="account-text">
+            <b>{me.username}</b>
+            <small>{t.owner}</small>
+          </span>
+          <button className="ghost icon-btn" aria-label={t.logout} title={t.logout} onClick={logout}>
+            <IconLogout size={17} />
+          </button>
+        </div>
       </aside>
 
       <main className="main">
-        {status?.proxy?.state === "disconnected" && <div className="banner bad">{t.proxyDown}</div>}
+        {dialog && (
+          <BotPage
+            bot={dialog.bot}
+            onClose={() => setDialog(null)}
+            onSaved={async (b) => {
+              setDialog(null);
+              await loadBots();
+              openBotChat(b.id);
+            }}
+          />
+        )}
+        {status?.proxy?.state === "disconnected" && (
+          <div className="banner bad">
+            {t.proxyDown}
+            {status.proxy.reason && ` ${t.proxyReasons[status.proxy.reason]}`}
+          </div>
+        )}
         {status?.lowDiskMessage && <div className="banner warn">{status.lowDiskMessage}</div>}
+        {view === "chat" && !chatOpen && <ChatHub bots={bots} pending={byBot} onOpen={(id, conversationId) => openBotChat(id, conversationId ?? null)} onNew={() => setDialog({ bot: null })} />}
         {view === "chat" &&
+          chatOpen &&
           (bot ? (
-            <Chat key={bot.id} bot={bot} activityTick={activityTick} initialConversation={openConversation} />
+            <Chat
+              key={bot.id}
+              bot={bot}
+              activityTick={activityTick}
+              initialConversation={openConversation}
+              onBotChanged={() => void loadBots()}
+              headBadge={<ApprovalBadge items={byBot[bot.id] ?? []} onChanged={() => { reloadPending(); void loadStatus(); }} onOpenPage={() => go("chat", true)} />}
+            />
           ) : (
             <div className="empty">{bots.length ? t.pickBot : t.noBots}</div>
           ))}
-        {view === "approvals" && <ApprovalsPage activityTick={activityTick} />}
         {view === "connections" && <ConnectionsPage />}
         {view === "routines" && <RoutinesPage
             bots={bots}
             activityTick={activityTick}
             onOpenConversation={(id, conversationId) => {
-              setBotId(id);
-              setOpenConversation(conversationId);
-              setView("chat");
+              openBotChat(id, conversationId);
             }}
           />}
         {view === "knowledge" && <KnowledgePage />}
         {view === "browser" && <BrowserPage bots={bots} />}
-        {view === "pages" && <SharedPagesPage />}
+        {view === "vault" && <VaultPage />}
+        {view === "pages" && <SharedPagesPage bots={bots} />}
         {view === "usage" && <UsagePage />}
         {view === "files" && <FilesPage />}
         {view === "settings" && <SettingsPage proxy={status?.proxy ?? null} onSaved={loadStatus} />}
       </main>
+
+      <nav className="bottom-nav" aria-label={t.menu}>
+        {PHONE_BAR.map((v) => {
+          const NavIcon = NAV_ICONS[v];
+          return (
+            <button key={v} className={view === v ? "active" : ""} aria-current={view === v ? "page" : undefined} onClick={() => go(v)}>
+              <NavIcon size={21} />
+              <span>{label(v)}</span>
+            </button>
+          );
+        })}
+        <button className={more || !PHONE_BAR.includes(view) ? "active" : ""} aria-expanded={more} onClick={() => setMore(!more)}>
+          <IconMenu size={21} />
+          <span>{t.more}</span>
+        </button>
+      </nav>
+      {more && (
+        <>
+          <div className="sheet-scrim" onClick={() => setMore(false)} />
+          <div className="sheet" role="dialog" aria-label={t.more}>
+            <div className="sheet-head">
+              <strong>{t.more}</strong>
+              <button className="ghost icon-btn" aria-label={t.closeMenu} onClick={() => setMore(false)}>
+                <IconX size={17} />
+              </button>
+            </div>
+            <div className="sheet-grid">
+              {VIEWS.filter((v) => !PHONE_BAR.includes(v)).map((v) => {
+                const NavIcon = NAV_ICONS[v];
+                return (
+                  <button key={v} className={view === v ? "active" : ""} onClick={() => go(v)}>
+                    <NavIcon size={22} />
+                    <span>{label(v)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="sheet-foot">
+              <button onClick={toggleLang}>{lang === "fa" ? "English" : "فارسی"}</button>
+              <button className="danger" onClick={logout}>
+                {t.logout}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {menu && (
         <div className="menu card" style={{ top: menu.y, left: Math.max(8, Math.min(menu.x, window.innerWidth - 178)) }}>
@@ -330,18 +526,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             {t.delete}
           </button>
         </div>
-      )}
-      {dialog && (
-        <BotDialog
-          bot={dialog.bot}
-          onClose={() => setDialog(null)}
-          onSaved={async (b) => {
-            setDialog(null);
-            await loadBots();
-            setBotId(b.id);
-            setView("chat");
-          }}
-        />
       )}
     </div>
   );

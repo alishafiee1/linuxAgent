@@ -1,10 +1,11 @@
-import type { Approval, FileEntry, ProxyNode, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
+import type { FileEntry, ProxyStatus, PublicSettings, UsageReport } from "@linux-agent/shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
-import { IconArrowUp, IconBell, IconCheck, IconDownload, IconFolder, IconGauge, IconGlobe, IconInbox, IconShield, IconSliders, IconX } from "./icons";
+import { IconArrowUp, IconBell, IconDownload, IconFolder, IconGauge, IconSliders } from "./icons";
 import { useT } from "./i18n";
 import { DevicesSection } from "./pagesExt";
-import { PendingRequests } from "./requests";
+import { ProxyPanel } from "./proxyPanel";
+import { PushPanel } from "./pushPanel";
 
 /** Plain words first; the exact input stays one click away for anyone who wants to check it. */
 export function ApprovalDetails({ summary, toolName, input }: { summary?: string; toolName: string; input: unknown }) {
@@ -26,84 +27,6 @@ export function ApprovalDetails({ summary, toolName, input }: { summary?: string
   );
 }
 
-export function ApprovalsPage({ activityTick }: { activityTick: number }) {
-  const { t, locale } = useT();
-  const [list, setList] = useState<Approval[]>([]);
-  const [error, setError] = useState("");
-  const load = useCallback(() => api.get<Approval[]>("/api/approvals").then(setList, (e: Error) => setError(e.message)), []);
-  useEffect(() => {
-    void load();
-  }, [load, activityTick]);
-  const decide = async (id: string, allow: boolean) => {
-    try {
-      await api.post(`/api/approvals/${id}/decide`, { allow });
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    void load();
-  };
-  const pending = list.filter((a) => a.state === "pending");
-  const past = list.filter((a) => a.state !== "pending").slice(0, 50);
-  return (
-    <div className="page">
-      <h2>{t.approvals}</h2>
-      {error && <div className="err">{error}</div>}
-      <PendingRequests activityTick={activityTick} />
-      {pending.length === 0 && (
-        <div className="empty">
-          <IconInbox size={30} />
-          <p>{t.noPending}</p>
-        </div>
-      )}
-      <div style={{ display: "grid", gap: 10 }}>
-        {pending.map((a) => (
-          <div key={a.id} className="approval" role="alert">
-            <div className="approval-head">
-              <span className="approval-ic">
-                <IconShield size={18} />
-              </span>
-              <strong>{a.botName}</strong>
-              <span className="muted">· {a.reason}</span>
-              <span className="spacer" />
-              <span className="muted">{new Date(a.createdAt).toLocaleString(locale)}</span>
-            </div>
-            <ApprovalDetails summary={a.summary} toolName={a.toolName} input={a.input} />
-            <div className="row approval-actions">
-              <button className="primary" onClick={() => void decide(a.id, true)}>
-                <IconCheck size={16} />
-                {t.allow}
-              </button>
-              <button className="danger" onClick={() => void decide(a.id, false)}>
-                <IconX size={16} />
-                {t.deny}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {past.length > 0 && (
-        <table style={{ marginTop: 24 }}>
-          <tbody>
-            {past.map((a) => (
-              <tr key={a.id}>
-                <td>{a.botName}</td>
-                <td>
-                  <code>{a.toolName}</code>
-                </td>
-                <td>{a.reason}</td>
-                <td>
-                  {t.approvalStates[a.state]} {a.decidedByChannel ? `(${t.channels[a.decidedByChannel]})` : ""}
-                </td>
-                <td className="muted">{a.decidedAt ? new Date(a.decidedAt).toLocaleString(locale) : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
 export function UsagePage() {
   const { t, locale } = useT();
   const [report, setReport] = useState<UsageReport | null>(null);
@@ -111,100 +34,131 @@ export function UsagePage() {
     api.get<UsageReport>("/api/usage").then(setReport, () => {});
   }, []);
   if (!report) return null;
-  const fmt = (n: number) => n.toLocaleString();
+  const fmt = (n: number) => n.toLocaleString(locale);
+  const pct = (n: number) => `${Math.round(n).toLocaleString(locale)}٪`;
+  const maxCost = Math.max(0.0001, ...report.rows.map((r) => r.costEstimateUsd));
   return (
-    <div className="page">
-      <h2>{t.usage}</h2>
-      {report.limit.waiting && (
-        <div className="banner warn card" style={{ marginBottom: 12 }}>
-          {t.limitBanner} {report.limit.resetAt ? new Date(report.limit.resetAt).toLocaleString(locale) : "?"}
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.usage}</h2>
+          <p>{t.usageHelp}</p>
         </div>
+      </header>
+      {report.limit.waiting && (
+        <p className="info-banner warn">
+          {t.limitBanner} {report.limit.resetAt ? <Stamp iso={report.limit.resetAt} locale={locale} /> : "?"}
+        </p>
       )}
-      <div className="card section">
-        <h3>
-          <IconGauge size={16} />
-          {t.planLimits}
-        </h3>
-        {report.plan.length === 0 && <p className="muted">{t.planNone}</p>}
+      <div className="usage-top">
+        {report.plan.length === 0 && (
+          <article className="card usage-card">
+            <h3>
+              <IconGauge size={16} />
+              {t.planLimits}
+            </h3>
+            <p className="muted">{t.planNone}</p>
+          </article>
+        )}
         {report.plan.map((l) => {
           const percent = l.utilization === null ? null : Math.min(100, Math.round(l.utilization * 100));
           return (
-            <div key={l.type} className={`plan-limit ${l.status}`}>
-              <div className="row">
-                <strong>{t.planTypes[l.type] ?? l.type}</strong>
-                <span className="spacer" />
-                <span>{percent === null ? t.planNoFigure : `٪${percent.toLocaleString(locale)}`}</span>
+            <article key={l.type} className={`card usage-card plan-limit ${l.status}`}>
+              <div className="usage-card-head">
+                <h3>
+                  <IconGauge size={16} />
+                  {t.planTypes[l.type] ?? l.type}
+                </h3>
+                <span className="usage-status">{t.planStatus[l.status]}</span>
               </div>
+              <div className="usage-big">{percent === null ? t.planNoFigure : <bdi dir="rtl">{pct(percent)}</bdi>}</div>
               {percent !== null && (
-                <div className="upload-bar plan-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
+                <div className="usage-bar" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={t.planTypes[l.type] ?? l.type}>
                   <span style={{ width: `${percent}%` }} />
                 </div>
               )}
-              <div className="muted plan-meta">
-                {t.planStatus[l.status]}
-                {l.resetsAt && ` · ${t.planResets}: ${new Date(l.resetsAt).toLocaleString(locale)}`}
-                {` · ${t.planReported}: ${new Date(l.reportedAt).toLocaleString(locale)}`}
-              </div>
-            </div>
+              <p className="muted usage-meta">
+                {l.resetsAt && (
+                  <>
+                    {t.planResets}: <Stamp iso={l.resetsAt} locale={locale} />
+                  </>
+                )}
+              </p>
+            </article>
           );
         })}
-        <p className="muted plan-meta">{t.planHelp}</p>
-        <p className="muted plan-meta">
-          {t.panelTokens}: {t.fiveHours} {fmt(report.windows.fiveHours)} · {t.sevenDays} {fmt(report.windows.sevenDays)}
-        </p>
       </div>
+      <p className="muted usage-note">
+        {t.planHelp} {t.panelTokens}: {t.fiveHours} {fmt(report.windows.fiveHours)} · {t.sevenDays} {fmt(report.windows.sevenDays)}
+      </p>
       {report.top.length > 0 && (
-        <div className="card section">
-          <h3>{t.topUsage}</h3>
-          <p className="muted plan-meta">{t.topUsageHelp}</p>
-          {report.top.map((u) => (
-            <div key={u.conversationId} className="top-usage">
-              <div className="row nowrap">
-                <span className="upload-name" dir="auto" title={u.title}>
-                  {u.title}
-                </span>
-                <span className="muted">{u.botName}</span>
-                <span>{`٪${Math.round(u.share * 100).toLocaleString(locale)}`}</span>
+        <article className="card usage-card">
+          <h3>
+            <IconGauge size={16} />
+            {t.topUsage}
+          </h3>
+          <div className="usage-shares">
+            {report.top.map((u) => (
+              <div key={u.conversationId} className="usage-share">
+                <div className="usage-share-head">
+                  <b dir="auto" title={u.title}>
+                    {u.title}
+                  </b>
+                  <span className="muted">{u.botName}</span>
+                  <bdi dir="rtl">{pct(u.share * 100)}</bdi>
+                </div>
+                <div className="usage-bar">
+                  <span style={{ width: `${Math.round(u.share * 100)}%` }} />
+                </div>
               </div>
-              <div className="upload-bar">
-                <span style={{ width: `${Math.round(u.share * 100)}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </article>
       )}
       {report.rows.length === 0 ? (
         <div className="empty">
-          <IconGauge size={30} />
+          <div className="hub-emoji">📊</div>
           <p>{t.empty}</p>
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>{t.day}</th>
-              <th>{t.bot}</th>
-              <th>{t.runs}</th>
-              <th>{t.inputTokens}</th>
-              <th>{t.outputTokens}</th>
-              <th title={t.estimateNote}>{t.cost}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.rows.map((r) => (
-              <tr key={`${r.day}-${r.botId}`}>
-                <td>{r.day}</td>
-                <td>{r.botName}</td>
-                <td className="num">{fmt(r.runs)}</td>
-                <td className="num">{fmt(r.inputTokens)}</td>
-                <td className="num">{fmt(r.outputTokens)}</td>
-                <td className="num">${r.costEstimateUsd.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <article className="card usage-card usage-table">
+          <h3>{t.usageTable}</h3>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t.day}</th>
+                  <th>{t.bot}</th>
+                  <th>{t.runs}</th>
+                  <th>{t.inputTokens}</th>
+                  <th>{t.outputTokens}</th>
+                  <th title={t.estimateNote}>{t.cost}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.map((r) => (
+                  <tr key={`${r.day}-${r.botId}`}>
+                    <td>{r.day}</td>
+                    <td>{r.botName}</td>
+                    <td className="num">{fmt(r.runs)}</td>
+                    <td className="num">{fmt(r.inputTokens)}</td>
+                    <td className="num">{fmt(r.outputTokens)}</td>
+                    <td className="num">
+                      <span className="cost-cell">
+                        <span className="cost-bar">
+                          <span style={{ width: `${(r.costEstimateUsd / maxCost) * 100}%` }} />
+                        </span>
+                        ${r.costEstimateUsd.toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
       )}
-      <p className="muted" style={{ fontSize: 12 }}>
+      <p className="muted usage-note">
         {t.cost}: {t.estimateNote}
       </p>
     </div>
@@ -212,7 +166,7 @@ export function UsagePage() {
 }
 
 export function FilesPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [root, setRoot] = useState<"workspace" | "bots">("workspace");
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<FileEntry[]>([]);
@@ -225,14 +179,17 @@ export function FilesPage() {
     });
   }, [root, path]);
   const up = path.split("/").slice(0, -1).join("/");
+  const parts = path ? path.split("/") : [];
   return (
-    <div className="page">
-      <div className="row">
-        <h2 style={{ margin: 0 }}>{t.files}</h2>
-        <span className="spacer" />
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.files}</h2>
+          <p>{t.filesHelp}</p>
+        </div>
         <select
           value={root}
-          style={{ width: "auto" }}
+          className="pg-select"
           onChange={(e) => {
             setRoot(e.target.value as "workspace" | "bots");
             setPath("");
@@ -241,58 +198,68 @@ export function FilesPage() {
           <option value="workspace">{t.workspace}</option>
           <option value="bots">{t.botsFolder}</option>
         </select>
-      </div>
-      <p className="muted" dir="ltr" style={{ textAlign: "start" }}>
-        /{path}
-      </p>
+      </header>
+      <nav className="crumbs" aria-label={t.files}>
+        <button className="ghost" onClick={() => setPath("")}>
+          <IconFolder size={14} />
+          {root === "workspace" ? t.workspace : t.botsFolder}
+        </button>
+        {parts.map((seg, i) => (
+          <span key={parts.slice(0, i + 1).join("/")} className="crumb">
+            /
+            <button className="ghost" onClick={() => setPath(parts.slice(0, i + 1).join("/"))}>
+              <bdi dir="ltr">{seg}</bdi>
+            </button>
+          </span>
+        ))}
+      </nav>
       {error && <div className="err">{error}</div>}
-      <table>
-        <tbody>
-          {path && (
-            <tr>
-              <td colSpan={3}>
-                <button className="ghost" onClick={() => setPath(up)}>
-                  <IconArrowUp size={14} />
-                  {t.up}
-                </button>
-              </td>
-            </tr>
-          )}
-          {entries.length === 0 && !error && (
-            <tr>
-              <td colSpan={3}>
-                <div className="empty slim">
-                  <IconFolder size={26} />
-                  <p>{t.empty}</p>
-                </div>
-              </td>
-            </tr>
-          )}
-          {entries.map((e) => (
-            <tr key={e.path}>
-              <td>
-                {e.type === "dir" ? (
-                  <button className="ghost" onClick={() => setPath(e.path)}>
-                    <IconFolder size={15} />
-                    {e.name}
-                  </button>
-                ) : (
-                  <span dir="ltr">{e.name}</span>
-                )}
-              </td>
-              <td className="num muted">{e.type === "file" ? `${(e.size / 1024).toFixed(1)} KB` : ""}</td>
-              <td>
-                {e.type === "file" && (
-                  <a className="dl" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
-                    <IconDownload size={14} />
-                    {t.download}
-                  </a>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="card files-list">
+        {path && (
+          <button className="files-row" onClick={() => setPath(up)}>
+            <span className="files-icon">
+              <IconArrowUp size={16} />
+            </span>
+            <span className="files-text">
+              <b>{t.up}</b>
+            </span>
+          </button>
+        )}
+        {entries.length === 0 && !error && (
+          <div className="empty slim">
+            <p>{t.empty}</p>
+          </div>
+        )}
+        {entries.map((e) =>
+          e.type === "dir" ? (
+            <button key={e.path} className="files-row" onClick={() => setPath(e.path)}>
+              <span className="files-icon dir">
+                <IconFolder size={18} />
+              </span>
+              <span className="files-text">
+                <b>
+                  <bdi dir="ltr">{e.name}</bdi>
+                </b>
+                <small>{new Date(e.mtime).toLocaleDateString(locale)}</small>
+              </span>
+            </button>
+          ) : (
+            <a key={e.path} className="files-row" href={`/api/files/download?root=${root}&path=${encodeURIComponent(e.path)}`}>
+              <span className="files-icon">
+                <IconDownload size={17} />
+              </span>
+              <span className="files-text">
+                <b>
+                  <bdi dir="ltr">{e.name}</bdi>
+                </b>
+                <small>
+                  <bdi dir="ltr">{`${(e.size / 1024).toFixed(1)} KB`}</bdi> · {new Date(e.mtime).toLocaleDateString(locale)}
+                </small>
+              </span>
+            </a>
+          ),
+        )}
+      </div>
     </div>
   );
 }
@@ -352,89 +319,9 @@ function ChannelForm({ name, label, current, onSaved }: { name: "bale" | "telegr
   );
 }
 
-function ProxySection({ proxy, onChanged }: { proxy: ProxyStatus | null; onChanged: () => void }) {
-  const { t } = useT();
-  const [link, setLink] = useState("");
-  const [sub, setSub] = useState("");
-  const [nodes, setNodes] = useState<ProxyNode[] | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const run = async (fn: () => Promise<unknown>, okText = t.saved) => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await fn();
-      setMsg({ ok: true, text: okText });
-      onChanged();
-    } catch (e) {
-      setMsg({ ok: false, text: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="card section">
-      <h3>
-        <IconGlobe size={16} />
-        {t.proxy}
-      </h3>
-      {proxy && (
-        <div className="row">
-          <span className="pill">
-            <span className={`dot ${proxy.state === "connected" ? "good" : proxy.state === "disconnected" ? "bad" : "warn"}`} />
-            {t[proxy.state]}
-            {proxy.latencyMs !== null && proxy.state === "connected" && ` · ${proxy.latencyMs} ${t.ms}`}
-          </span>
-          {proxy.current && (
-            <span className="muted" dir="ltr">
-              {t.current}: {proxy.current.scheme}://{proxy.current.host}:{proxy.current.port} {proxy.current.remark}
-            </span>
-          )}
-        </div>
-      )}
-      <label>
-        {t.proxyLink}
-        <textarea rows={2} dir="ltr" value={link} onChange={(e) => setLink(e.target.value)} />
-      </label>
-      <div className="row">
-        <button className="primary" disabled={busy || !link.trim()} onClick={() => void run(() => api.put("/api/proxy", { link }).then(() => setLink("")))}>
-          {t.apply}
-        </button>
-      </div>
-      <label>
-        {t.subscription}
-        <input dir="ltr" placeholder={proxy?.subscriptionUrlSet ? t.tokenKeep : "https://"} value={sub} onChange={(e) => setSub(e.target.value)} />
-      </label>
-      <div className="row">
-        <button disabled={busy || !sub.trim()} onClick={() => void run(() => api.put("/api/proxy", { subscriptionUrl: sub }).then(() => setSub("")))}>
-          {t.save}
-        </button>
-        <button disabled={busy || (!proxy?.subscriptionUrlSet && !sub)} onClick={() => void run(() => api.get<ProxyNode[]>("/api/proxy/subscription/nodes").then(setNodes), "")}>
-          {t.loadNodes}
-        </button>
-      </div>
-      {nodes && (
-        <table>
-          <tbody>
-            {nodes.map((n) => (
-              <tr key={n.index}>
-                <td>{n.remark}</td>
-                <td dir="ltr">
-                  {n.scheme}://{n.host}:{n.port}
-                </td>
-                <td>
-                  <button disabled={busy} onClick={() => void run(() => api.post("/api/proxy/select", { index: n.index }))}>
-                    {t.use}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {msg && msg.text && <div className={msg.ok ? "ok" : "err"}>{msg.text}</div>}
-    </div>
-  );
+/** A date kept in one piece, so its numbers and separators do not flip inside right-to-left text. */
+function Stamp({ iso, locale }: { iso: string; locale: string }) {
+  return <bdi dir={locale.startsWith("fa") ? "rtl" : "ltr"}>{new Date(iso).toLocaleString(locale)}</bdi>;
 }
 
 export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; onSaved: () => void }) {
@@ -461,8 +348,14 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
     }
   };
   return (
-    <div className="page">
-      <h2>{t.settings}</h2>
+    <div className="page cols">
+      <header className="pg-top">
+        <div>
+          <h2>{t.settings}</h2>
+          <p>{t.settingsHelp}</p>
+        </div>
+      </header>
+      <div className="col">
       <div className="card section">
         <h3>
           <IconSliders size={16} />
@@ -501,6 +394,10 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
           {error && <span className="err">{error}</span>}
         </div>
       </div>
+        <PushPanel />
+        <DevicesSection />
+      </div>
+      <div className="col">
       <div className="card section">
         <div className="row">
           <h3>
@@ -530,8 +427,8 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
         <hr style={{ border: 0, borderTop: "1px solid var(--border)", width: "100%" }} />
         <ChannelForm name="telegram" label={t.channels.telegram!} current={s.telegram} onSaved={load} />
       </div>
-      <ProxySection proxy={proxy} onChanged={onSaved} />
-      <DevicesSection />
+        <ProxyPanel proxy={proxy} onChanged={onSaved} />
+      </div>
     </div>
   );
 }

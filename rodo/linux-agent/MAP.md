@@ -23,6 +23,16 @@
 - [011 — مهارت‌های پنل و کاربردی](cycles/011-skill-pack/simple.md)
 - [012 — آزمون‌های سراسری](cycles/012-e2e-tests/simple.md)
 - [014 — فایل در چت](cycles/014-files-in-chat/simple.md)
+- [021 — تب روتین تازه و ساخت روتین به دست بات‌ها](cycles/021-routines-page/simple.md)
+- [022 — ظاهر نرم، آواتار بات‌ها، نشان تأیید و انتخاب مدل](cycles/022-soft-theme-avatars-model/simple.md)
+- [023 — مدیریت چند اتصال پروکسی](cycles/023-proxy-connections/simple.md)
+- [024 — ترمیم خودکار پروکسی با ساب و اتصال‌های بعدی](cycles/024-proxy-auto-heal/simple.md)
+- [025 — نصب‌شدنی روی گوشی و اعلان فوری تأیید](cycles/025-pwa-push/simple.md)
+- [026 — تحقیق عمیق در چت](cycles/026-deep-research/simple.md)
+- [027 — فهرست مدل از Claude Code و تلاش هر مدل](cycles/027-model-list/simple.md)
+- [028 — طراحی تازهٔ ظاهر برای موبایل و لپ‌تاپ](cycles/028-responsive-shell/simple.md)
+- [029 — منوی بازشونده، لینک صفحه‌های پنل و آدرس‌دهی مرورگر](cycles/029-panel-links/simple.md)
+- [ظاهر تازهٔ صفحهٔ روتین‌ها](cycles/cycles\030-routines-look/simple.md)
 
 ## لغوشده
 

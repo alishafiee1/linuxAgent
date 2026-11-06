@@ -1,10 +1,12 @@
 import type { Bot, ChatFile, Conversation, RequestKind, RequestPayload, Run, RunEvent } from "@linux-agent/shared";
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type ReactNode, type DragEvent, type FormEvent, type KeyboardEvent } from "react";
 import { currentActivity, formatElapsed } from "./activity";
 import { api } from "./api";
-import { IconActivity, IconArrowUp, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
+import { BotAvatar } from "./avatars";
+import { IconActivity, IconPaperclip, IconBot, IconCheck, IconCheckCircle, IconChevronDown, IconGlobe, IconClock, IconHourglass, IconPause, IconPlay, IconPlus, IconSend, IconShield, IconStop, IconTerminal, IconX, IconXCircle, type IconProps } from "./icons";
 import { useT } from "./i18n";
 import { Markdown } from "./Markdown";
+import { ModelChips } from "./modelChips";
 import { ApprovalDetails } from "./pages";
 import { RequestCard } from "./requests";
 import { FileCard, UploadTray, useLeaveGuard, useUploads } from "./uploads";
@@ -22,13 +24,14 @@ const STATE_ICONS: Record<string, (p: IconProps) => ReturnType<typeof IconBot>> 
   cancelled: IconStop,
 };
 
-export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; activityTick: number; initialConversation?: string | null }) {
+export function Chat({ bot, activityTick, initialConversation, onBotChanged, headBadge }: { bot: Bot; activityTick: number; initialConversation?: string | null; onBotChanged?: () => void; headBadge?: ReactNode }) {
   const { t } = useT();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [convId, setConvId] = useState<string | null>(initialConversation ?? null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const messages = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -80,6 +83,22 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
     setConvId(c.id);
   };
 
+  const [research, setResearch] = useState(false);
+  // The text box grows with what is typed, up to a limit set in CSS; past that it scrolls.
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    // The width can still be settling when the page opens (a menu sliding, a font loading), so measure again when it changes.
+    const watch = new ResizeObserver(fit);
+    if (el.parentElement) watch.observe(el.parentElement);
+    return () => watch.disconnect();
+  }, [text]);
+
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!text.trim() && !uploads.ready.length) return;
@@ -93,7 +112,8 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
         await loadConversations();
         setConvId(id);
       }
-      await api.post(`/api/conversations/${id}/messages`, { text, attachments: uploads.ready });
+      await api.post(`/api/conversations/${id}/messages`, { text, attachments: uploads.ready, research });
+      setResearch(false);
       setText("");
       uploads.clear();
       stick.current = true;
@@ -127,8 +147,11 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
   return (
     <div className="chat">
       <div className="chat-head">
-        <span className="avatar">{bot.name.slice(0, 1).toUpperCase()}</span>
-        <strong>{bot.name}</strong>
+        <BotAvatar bot={bot} size="lg" badge={headBadge} />
+        <span className="chat-who">
+          <strong>{bot.name}</strong>
+          <small>{bot.persona.split("\n")[0]}</small>
+        </span>
         <span className="spacer" />
         <select value={convId ?? ""} onChange={(e) => setConvId(e.target.value || null)}>
           {conversations.length === 0 && <option value="">{t.newConversation}</option>}
@@ -140,7 +163,7 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
         </select>
         <button onClick={() => void newConversation()}>
           <IconPlus size={14} />
-          {t.newConversation}
+          <span className="btn-label">{t.newConversation}</span>
         </button>
       </div>
       <div className="messages" ref={messages}>
@@ -164,6 +187,16 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
+        <ModelChips
+          bot={bot}
+          onChanged={() => onBotChanged?.()}
+          extra={
+            <button type="button" className={`chip research-chip${research ? " on" : ""}`} aria-pressed={research} title={t.researchHint} onClick={() => setResearch(!research)}>
+              <IconGlobe size={14} />
+              {t.research}
+            </button>
+          }
+        />
         <UploadTray items={uploads.items} onRemove={uploads.remove} onRetry={uploads.retry} />
         <form onSubmit={send}>
           <input
@@ -178,15 +211,16 @@ export function Chat({ bot, activityTick, initialConversation }: { bot: Bot; act
             }}
           />
           <button type="button" className="ghost icon-btn attach-btn" title={t.attachFile} aria-label={t.attachFile} onClick={() => picker.current?.click()}>
-            <IconArrowUp size={16} />
+            <IconPaperclip size={17} />
           </button>
-          <textarea rows={2} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
+          <textarea ref={box} rows={1} dir="auto" value={text} placeholder={dragging ? t.dropFiles : t.messagePlaceholder} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} onPaste={onPaste} />
           <button className="primary send-btn" disabled={uploads.busy || (!text.trim() && !uploads.ready.length)}>
-            {t.send}
+            <span className="send-label">{t.send}</span>
             <IconSend size={15} />
           </button>
         </form>
         {error && <div className="err" style={{ textAlign: "center" }}>{error}</div>}
+        <p className="composer-hint">{t.composerHint}</p>
       </div>
     </div>
   );
@@ -342,6 +376,7 @@ function RunView({ run, botId, onChanged }: { run: Run; botId: string; onChanged
             return (
               <div key={e.seq} className="msg">
                 <div className="bubble user">
+                  {p.research ? <div className="research-tag"><IconGlobe size={12} />{t.research}</div> : null}
                   {p.text ? <div dir="auto">{String(p.text)}</div> : null}
                   {(p.files as ChatFile[] | undefined)?.map((f) => <FileCard key={f.path} file={f} />)}
                 </div>

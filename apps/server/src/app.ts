@@ -10,9 +10,11 @@ import { z } from "zod";
 import type { ApprovalService } from "./approval/service.js";
 import { MSG_ALREADY_DECIDED } from "./approval/service.js";
 import { MSG_BAD_LOGIN, MSG_LOCKED, SESSION_DAYS, type AuthService } from "./auth/service.js";
-import { HttpError, type BotService } from "./bots.js";
+import { AVATAR_COUNT, HttpError, type BotService } from "./bots.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
+import type { ModelCatalogService } from "./models.js";
+import type { PushService } from "./push.js";
 import type { Notifier } from "./notify/notifier.js";
 import type { ProxyService } from "./proxy/service.js";
 import type { EventStore } from "./runs/events.js";
@@ -35,6 +37,8 @@ export interface AppDeps {
   events: EventStore;
   settings: SettingsStore;
   notifier: Notifier | null;
+  push?: PushService | null;
+  models?: ModelCatalogService | null;
   proxy: ProxyService | null;
   ext?: ExtDeps;
 }
@@ -49,6 +53,8 @@ const botInput = z.object({
   name: z.string(),
   persona: z.string().max(10_000).optional(),
   model: z.string().max(100).nullable().optional(),
+  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).nullable().optional(),
+  avatar: z.number().int().min(1).max(AVATAR_COUNT).optional(),
   allowedTools: z.array(z.string()).nullable().optional(),
   maxTurns: z.number().int().optional(),
   maxMinutes: z.number().int().optional(),
@@ -187,9 +193,9 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     runs: d.orchestrator.listForConversation(req.params.id),
   }));
   app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req) => {
-    const { text, attachments } = parse(z.object({ text: z.string().max(100_000), attachments: z.array(z.string()).max(20).optional() }), req.body);
+    const { text, attachments, research } = parse(z.object({ text: z.string().max(100_000), attachments: z.array(z.string()).max(20).optional(), research: z.boolean().optional() }), req.body);
     const files = attachments?.length ? (d.ext?.uploads.take(attachments) ?? []) : [];
-    const run = d.orchestrator.submit(req.params.id, text, { files });
+    const run = d.orchestrator.submit(req.params.id, text, { files, research });
     return { runId: run.id };
   });
   app.get<{ Params: { id: string } }>("/api/runs/:id", async (req) => d.orchestrator.get(req.params.id));
@@ -337,6 +343,33 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     if (input.maxConcurrentRuns !== undefined) d.orchestrator.pump();
     return d.settings.publicView();
   });
+  app.get("/api/models", async () => {
+    if (!d.models) throw new HttpError(501, "disabled", "فهرست مدل‌ها غیرفعال است.");
+    return d.models.get();
+  });
+  app.post("/api/models/refresh", async () => {
+    if (!d.models) throw new HttpError(501, "disabled", "فهرست مدل‌ها غیرفعال است.");
+    return d.models.refresh();
+  });
+  const pushSub = z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
+  app.get("/api/push/key", async () => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    return { key: d.push.publicKey(), subscriptions: d.push.count() };
+  });
+  app.post("/api/push/subscribe", async (req) => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    d.push.subscribe(parse(pushSub, req.body), String(req.headers["user-agent"] ?? ""));
+    return { ok: true };
+  });
+  app.post("/api/push/unsubscribe", async (req) => {
+    d.push?.unsubscribe(parse(z.object({ endpoint: z.string() }), req.body).endpoint);
+    return { ok: true };
+  });
+  app.post("/api/push/test", async () => {
+    if (!d.push) throw new HttpError(501, "disabled", "اعلان فوری غیرفعال است.");
+    await d.push.notify("آزمایش اعلان", "اگر این را می‌بینید، اعلان فوری کار می‌کند.");
+    return { ok: true };
+  });
   app.post<{ Params: { channel: string } }>("/api/settings/notify/:channel/test", async (req) => {
     const ch = req.params.channel;
     if (ch !== "bale" && ch !== "telegram") throw new HttpError(404, "not_found", "پیدا نشد.");
@@ -362,6 +395,18 @@ export async function buildApp(d: AppDeps): Promise<FastifyInstance> {
     if (body.link) return p.applyLink(body.link);
     return p.current();
   });
+  app.get("/api/proxy/connections", async () => needProxy().listConnections());
+  app.post("/api/proxy/connections", async (req) => {
+    const b = parse(z.object({ link: z.string().max(5000), name: z.string().max(60).optional() }), req.body);
+    return needProxy().addConnection(b.link, b.name);
+  });
+  app.patch<{ Params: { id: string } }>("/api/proxy/connections/:id", async (req) =>
+    needProxy().renameConnection(req.params.id, parse(z.object({ name: z.string().max(60) }), req.body).name),
+  );
+  app.delete<{ Params: { id: string } }>("/api/proxy/connections/:id", async (req) => needProxy().removeConnection(req.params.id));
+  app.post<{ Params: { id: string } }>("/api/proxy/connections/:id/activate", async (req) => needProxy().activateConnection(req.params.id));
+  app.put("/api/proxy/failover", async (req) => needProxy().setFailover(parse(z.object({ enabled: z.boolean() }), req.body).enabled));
+  app.post("/api/proxy/subscription/sync", async () => needProxy().syncSubscription());
   app.get("/api/proxy/subscription/nodes", async () => needProxy().subscriptionNodes());
   app.post("/api/proxy/select", async (req) => needProxy().selectSubscriptionNode(parse(z.object({ index: z.number().int().min(0) }), req.body).index));
 

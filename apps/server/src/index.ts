@@ -19,6 +19,9 @@ import { RoutineService } from "./routines/service.js";
 import { UploadService } from "./uploads.js";
 import { VaultService } from "./vault.js";
 import { Notifier } from "./notify/notifier.js";
+import { ModelCatalogService } from "./models.js";
+import { panelLinksPrompt } from "./panelLinks.js";
+import { PushService } from "./push.js";
 import { ProxyService } from "./proxy/service.js";
 import { EventStore } from "./runs/events.js";
 import { Orchestrator } from "./runs/orchestrator.js";
@@ -59,9 +62,12 @@ const requests = new RequestService(db);
 const uploads = new UploadService(join(dirname(config.dbPath), "uploads-tmp"), agentFiles, config.workspaceDir, config.botsDir);
 const bridge = new BridgeService(db);
 
+const engine = new ClaudeAgentEngine(config.agentExec, config.claudePath);
+const models = new ModelCatalogService(settings, engine);
+
 const orchestrator: Orchestrator = new Orchestrator({
   db,
-  engine: new ClaudeAgentEngine(config.agentExec, config.claudePath),
+  engine,
   bots,
   approvals,
   events,
@@ -70,7 +76,7 @@ const orchestrator: Orchestrator = new Orchestrator({
   agentHome: config.agentHome,
   networkUp: () => proxy.isUp(),
   requests,
-  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor()].filter(Boolean).join("\n\n"),
+  promptExtras: (bot) => [knowledge.promptFor(bot), vault.promptNames(), bridge.promptFor(), platforms.promptFor(), panelLinksPrompt()].filter(Boolean).join("\n\n"),
   toolsFor: (ctx) => buildPanelTools({ bots, orchestrator: () => orchestrator, pages, connectors, browser, bridge, platforms, uploads, routines }, ctx),
   mcpServersFor: (bot) => browser.mcpServers(bot),
   policyOptions: () => ({ browserClicksAuto: settings.browserClicksAuto() }),
@@ -86,10 +92,12 @@ proxy.onChange((s) => {
 });
 
 notifier.attachRequests(requests, config.publicBaseUrl);
+const push = new PushService(db, settings, config.publicBaseUrl, undefined, log);
+notifier.attachPush(push);
 const learning = new LearningService({ db, bots, orchestrator, settings, files: agentFiles, agentHome: config.agentHome });
 const routines = new RoutineService({ db, bots, orchestrator, notify: (text, channels) => notifier.notify(text, channels) });
 
-const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
+const app = await buildApp({ config, db, auth, bots, orchestrator, approvals, events, settings, notifier, push, models, proxy, ext: { routines, knowledge, vault, browser, pages, connectors, bridge, platforms, requests, uploads } });
 
 orchestrator.recover();
 notifier.reload();

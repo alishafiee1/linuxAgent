@@ -1,7 +1,8 @@
 import type { Bot, Routine, RoutinePreview } from "@linux-agent/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "./api";
-import { IconBot, IconCheck, IconClock, IconPencil, IconPlay, IconPlus, IconTrash, IconX } from "./icons";
+import { BotAvatar } from "./avatars";
+import { IconCheck, IconClock, IconPencil, IconPlay, IconPlus, IconSparkles, IconTrash, IconUser, IconX } from "./icons";
 import { useT } from "./i18n";
 import { buildCron, classifyCron, describeCron, type CronForm, type Freq } from "./cronText";
 
@@ -90,7 +91,7 @@ function Timeline({ routines, onPick }: { routines: Routine[]; onPick: (id: stri
               const title = [...new Set(m.items.map((i) => i.r.name))].join("، ");
               const time = new Date(first.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
               const label = `${title} · ${time}${m.items.length > 1 ? ` · ${m.items.length.toLocaleString(locale)}` : ""}`;
-              return <button key={first.at} type="button" className={`rt-tl-mark ${first.r.createdBy ? "bot" : "mine"}`} style={{ left: `${m.left}%` }} title={label} aria-label={label} onClick={() => onPick(first.r.id)} />;
+              return <button key={first.at} type="button" className={`rt-tl-mark ${first.r.createdBy ? "bot" : "mine"}`} style={{ left: `${m.left}%` }} data-tip={label} aria-label={label} onClick={() => onPick(first.r.id)} />;
             })}
           </div>
         </div>
@@ -294,7 +295,7 @@ function RoutineDialog({ bots, routine, onClose, onSaved }: { bots: Bot[]; routi
   );
 }
 
-function RoutineRow({ r, now, flash, onChanged, onEdit, onOpen }: { r: Routine; now: number; flash: boolean; onChanged: () => void; onEdit: () => void; onOpen: (botId: string, conversationId: string) => void }) {
+function RoutineRow({ r, bot, now, flash, onChanged, onEdit, onOpen }: { r: Routine; bot: Bot | undefined; now: number; flash: boolean; onChanged: () => void; onEdit: () => void; onOpen: (botId: string, conversationId: string) => void }) {
   const { t, locale } = useT();
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState("");
@@ -306,97 +307,93 @@ function RoutineRow({ r, now, flash, onChanged, onEdit, onOpen }: { r: Routine; 
     fn().then(onChanged, (e: Error) => setError(e.message));
   };
   const last = r.last;
-  const tokens = last ? last.inputTokens + last.outputTokens : 0;
   const failed = last && ["failed", "cancelled", "interrupted"].includes(last.state);
+  const where = r.deliver.length ? r.deliver.map((c) => t.channels[c] ?? c).join(t.rt.and === "و" ? " و " : " & ") : "";
+  const schedule = r.trigger === "webhook" ? t.rt.freq.webhook : describeCron(r.cron ?? "", t, locale);
   return (
-    <div className={`rt-row${r.enabled ? "" : " paused"}${flash ? " flash" : ""}`} data-routine={r.id}>
-      <div className="rt-cell-main">
-        <span className={`rt-maker ${r.createdBy ? "bot" : "mine"}`} title={r.createdBy ? t.rt.madeBy.replace("{bot}", r.createdBy) : t.rt.madeByYou}>
-          {r.createdBy ? <IconBot size={13} /> : <IconCheck size={13} />}
-        </span>
-        <div className="rt-min">
-          <div className="rt-name" dir="auto" title={r.name}>
-            {r.name}
-          </div>
-          <div className="rt-sub muted">
-            <span dir="auto">{r.botName}</span>
+    <article className={`card rt-card${r.enabled ? "" : " paused"}${flash ? " flash" : ""}`} data-routine={r.id}>
+      <div className="rt-card-head">
+        {bot ? <BotAvatar bot={bot} size="md" /> : <span className="rt-maker">{r.createdBy ? <IconSparkles size={14} /> : <IconUser size={14} />}</span>}
+        <div className="rt-card-title">
+          <div className="rt-card-name">
+            <h3 dir="auto" title={r.name}>
+              {r.name}
+            </h3>
             {r.cron && (
               <code dir="ltr" className="rt-chip">
                 {r.cron}
               </code>
             )}
+            {r.createdBy && <span className="rt-by">{t.rt.madeBy.replace("{bot}", r.createdBy)}</span>}
           </div>
+          <p className="rt-card-desc">
+            {schedule}
+            {r.trigger !== "webhook" && ` · ${r.timezone}`}
+            {` · ${r.botName}`}
+            {where && ` · ${t.rt.deliverTo} ${where}`}
+          </p>
+          <p className="rt-card-next">
+            {r.enabled ? `${t.rt.nextRun}: ${r.nextRunAt ? `${when(r.nextRunAt, r.timezone, now, t, locale)} · ${relative(r.nextRunAt, now, t, locale)}` : "—"}` : t.rt.paused}
+          </p>
+          {last && (
+            <p className="rt-card-last">
+              <button type="button" className={`rt-last ${failed ? "bad" : last.state === "done" ? "good" : ""}`} title={t.rt.openRun} onClick={() => onOpen(r.botId, last.conversationId)}>
+                {t.states[last.state] ?? last.state}
+              </button>
+              <span>{relative(last.at, now, t, locale)}</span>
+            </p>
+          )}
         </div>
+        <label className="rt-switch" title={r.enabled ? t.disable : t.enable}>
+          <input
+            type="checkbox"
+            checked={enabled}
+            aria-label={`${enabled ? t.disable : t.enable}: ${r.name}`}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setEnabled(next);
+              setError("");
+              api.patch(`/api/routines/${r.id}`, { enabled: next }).then(onChanged, (err: Error) => {
+                setEnabled(!next);
+                setError(err.message);
+              });
+            }}
+          />
+          <span />
+        </label>
       </div>
-      <div className="rt-min">
-        <div>{r.trigger === "webhook" ? t.rt.freq.webhook : describeCron(r.cron ?? "", t, locale)}</div>
-        <div className="rt-sub muted" dir="ltr" style={{ textAlign: "start" }}>
-          {r.trigger === "webhook" ? "" : r.timezone}
-        </div>
-      </div>
-      <div className="rt-min">
-        <div>{r.enabled && r.nextRunAt ? when(r.nextRunAt, r.timezone, now, t, locale) : "—"}</div>
-        <div className="rt-sub muted">{r.enabled ? (r.nextRunAt ? relative(r.nextRunAt, now, t, locale) : "") : t.rt.paused}</div>
-      </div>
-      <div className="rt-min">
-        {last ? (
-          <>
-            <button type="button" className={`rt-last ${failed ? "bad" : last.state === "done" ? "good" : ""}`} title={t.rt.openRun} onClick={() => onOpen(r.botId, last.conversationId)}>
-              {t.states[last.state] ?? last.state}
-            </button>
-            <div className="rt-sub muted">
-              {relative(last.at, now, t, locale)}
-              {tokens > 0 && ` · ${tokens.toLocaleString(locale)} ${t.rt.tokens}`}
-            </div>
-          </>
-        ) : (
-          <span className="muted">{t.rt.neverRan}</span>
-        )}
-      </div>
-      <label className="rt-switch" title={r.enabled ? t.disable : t.enable}>
-        <input
-          type="checkbox"
-          checked={enabled}
-          aria-label={`${enabled ? t.disable : t.enable}: ${r.name}`}
-          onChange={(e) => {
-            const next = e.target.checked;
-            setEnabled(next);
-            setError("");
-            api.patch(`/api/routines/${r.id}`, { enabled: next }).then(onChanged, (err: Error) => {
-              setEnabled(!next);
-              setError(err.message);
-            });
-          }}
-        />
-        <span />
-      </label>
-      <div className="rt-actions">
+      <div className="rt-card-actions">
         {asking ? (
           <>
             <span className="err">{t.rt.deleteQ}</span>
-            <button type="button" className="ghost icon-btn danger" aria-label={t.delete} onClick={() => act(() => api.del(`/api/routines/${r.id}`))}>
+            <button type="button" className="danger" onClick={() => act(() => api.del(`/api/routines/${r.id}`))}>
               <IconCheck size={14} />
+              {t.delete}
             </button>
-            <button type="button" className="ghost icon-btn" aria-label={t.cancel} onClick={() => setAsking(false)}>
+            <button type="button" onClick={() => setAsking(false)}>
               <IconX size={14} />
+              {t.cancel}
             </button>
           </>
         ) : (
           <>
-            <button type="button" className="ghost icon-btn" title={t.runNow} aria-label={`${t.runNow}: ${r.name}`} onClick={() => act(() => api.post(`/api/routines/${r.id}/run`))}>
+            <button type="button" onClick={() => act(() => api.post(`/api/routines/${r.id}/run`))}>
               <IconPlay size={14} className="icon-flip" />
+              {t.rt.runShort}
             </button>
-            <button type="button" className="ghost icon-btn" title={t.edit} aria-label={`${t.edit}: ${r.name}`} onClick={onEdit}>
+            <button type="button" onClick={onEdit}>
               <IconPencil size={14} />
+              {t.edit}
             </button>
-            <button type="button" className="ghost icon-btn danger" title={t.delete} aria-label={`${t.delete}: ${r.name}`} onClick={() => setAsking(true)}>
+            <button type="button" className="danger" onClick={() => setAsking(true)}>
               <IconTrash size={14} />
+              {t.delete}
             </button>
           </>
         )}
       </div>
       {error && <div className="err rt-row-error">{error}</div>}
-    </div>
+    </article>
   );
 }
 
@@ -415,8 +412,7 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
   const rows = list
     .filter((r) => filter === "all" || (filter === "mine" ? !r.createdBy : r.createdBy))
     .sort((a, b) => Number(b.enabled) - Number(a.enabled) || (a.nextRunAt ?? "~").localeCompare(b.nextRunAt ?? "~") || a.name.localeCompare(b.name));
-  const soonest = list.filter((r) => r.enabled && r.nextRunAt).sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!))[0];
-  const failing = list.filter((r) => r.last && ["failed", "interrupted"].includes(r.last.state)).length;
+  const enabledCount = list.filter((r) => r.enabled).length;
 
   const pick = (id: string) => {
     setFlash(id);
@@ -426,15 +422,21 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
 
   return (
     <div className="page rt-page">
-      <div className="row">
-        <h2 style={{ margin: 0 }}>{t.routines}</h2>
-        <span className="spacer" />
+      <header className="rt-top">
+        <div className="rt-brand">
+          <span className="rt-logo">
+            <IconClock size={20} />
+          </span>
+          <div>
+            <h2 className="rt-title">{t.routines}</h2>
+            <p className="rt-subtitle">{t.rt.help}</p>
+          </div>
+        </div>
         <button className="primary" disabled={!bots.length} onClick={() => setDialog({ routine: null })}>
           <IconPlus size={15} />
           {t.newRoutine}
         </button>
-      </div>
-      <p className="muted">{t.rt.help}</p>
+      </header>
 
       {hookUrl && (
         <div className="help-box">
@@ -451,21 +453,11 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
         </div>
       )}
 
-      {list.length > 0 && (
-        <div className="rt-summary">
-          <span>
-            <IconClock size={14} />
-            {t.rt.nextRun}: <strong>{soonest ? `${when(soonest.nextRunAt!, soonest.timezone, now, t, locale)} · ${soonest.name}` : "—"}</strong>
-          </span>
-          {failing > 0 && <span className="err">{t.rt.failing.replace("{n}", failing.toLocaleString(locale))}</span>}
-        </div>
-      )}
-
       {list.length > 0 && <Timeline routines={list} onPick={pick} />}
 
-      <section className="card rt-panel">
-        <div className="rt-panel-head">
-          <h3>{t.rt.all}</h3>
+      {list.length > 0 && (
+        <div className="rt-count-line">
+          <span>{t.rt.countLine.replace("{n}", list.length.toLocaleString(locale)).replace("{a}", enabledCount.toLocaleString(locale))}</span>
           <div className="rt-seg" role="group" aria-label={t.rt.all}>
             {(["all", "mine", "bots"] as Filter[]).map((f) => (
               <button key={f} type="button" className={filter === f ? "active" : ""} aria-pressed={filter === f} onClick={() => setFilter(f)}>
@@ -474,21 +466,13 @@ export function RoutinesPage({ bots, activityTick, onOpenConversation }: { bots:
             ))}
           </div>
         </div>
-        {rows.length > 0 && (
-          <div className="rt-row rt-head">
-            <span>{t.rt.routine}</span>
-            <span>{t.rt.schedule}</span>
-            <span>{t.rt.nextRun}</span>
-            <span>{t.rt.lastRun}</span>
-            <span />
-            <span />
-          </div>
-        )}
+      )}
+      <div className="rt-cards">
         {rows.map((r) => (
-          <RoutineRow key={r.id} r={r} now={now} flash={flash === r.id} onChanged={() => void load()} onEdit={() => setDialog({ routine: r })} onOpen={onOpenConversation} />
+          <RoutineRow key={r.id} r={r} bot={bots.find((x) => x.id === r.botId)} now={now} flash={flash === r.id} onChanged={() => void load()} onEdit={() => setDialog({ routine: r })} onOpen={onOpenConversation} />
         ))}
-        {rows.length === 0 && <div className="empty slim">{list.length ? t.rt.emptyFilter : t.rt.empty}</div>}
-      </section>
+      </div>
+      {rows.length === 0 && <div className="empty slim">{list.length ? t.rt.emptyFilter : t.rt.empty}</div>}
 
       {dialog && (
         <RoutineDialog

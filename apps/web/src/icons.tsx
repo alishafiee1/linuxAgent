@@ -209,6 +209,34 @@ export const IconTrash = (p: IconProps) => (
   </Svg>
 );
 
+export const IconPaperclip = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </Svg>
+);
+
+export const IconUser = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </Svg>
+);
+
+export const IconSparkles = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
+    <path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" />
+  </Svg>
+);
+
+export const IconLogout = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </Svg>
+);
+
 export const IconGlobe = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="9" />
@@ -233,6 +261,33 @@ export const IconBot = (p: IconProps) => (
     <path d="M20 14h2" />
     <path d="M15 13v2" />
     <path d="M9 13v2" />
+  </Svg>
+);
+
+export const IconSun = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </Svg>
+);
+
+export const IconMoon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+  </Svg>
+);
+
+export const IconRefresh = (p: IconProps) => (
+  <Svg {...p}>
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10" />
+  </Svg>
+);
+
+export const IconCpu = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="5" y="5" width="14" height="14" rx="3" />
+    <path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" />
   </Svg>
 );
 

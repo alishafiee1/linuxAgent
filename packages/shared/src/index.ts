@@ -14,12 +14,47 @@ export const ACTIVE_RUN_STATES: readonly RunState[] = ["queued", "running", "wai
 
 export type RunEndReason = "max_turns" | "max_minutes" | "engine_error" | "cancelled" | "restart" | null;
 
+/** How hard the model thinks. Null on a bot means the engine default and nothing is sent. */
+export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type Effort = (typeof EFFORT_LEVELS)[number];
+
+/** Avatars are numbered 1..AVATAR_COUNT. 1..45 are /avatars/a01..a45.webp, the rest /avatars/b01..b77.webp. */
+export const AVATAR_COUNT = 122;
+
+/** Aliases the pinned Claude Code build understands; any other name can still be typed by hand. */
+export const MODEL_CHOICES = [
+  { id: "opus", name: "Opus" },
+  { id: "sonnet", name: "Sonnet" },
+  { id: "haiku", name: "Haiku" },
+] as const;
+
+/** A model the panel offers. `efforts` is empty when the model has no effort setting (Haiku). */
+export interface ModelOption {
+  id: string;
+  name: string;
+  /** e.g. "Opus 4.7", taken from Claude Code. */
+  version: string;
+  /** Claude Code's own English description; shown only when the panel has no Persian hint for the id. */
+  description: string;
+  efforts: Effort[];
+}
+
+export interface ModelCatalog {
+  models: ModelOption[];
+  /** Effort levels of the panel's default model. */
+  defaultEfforts: Effort[];
+  /** null until the list was refreshed once; then the built-in list is shown. */
+  updatedAt: string | null;
+}
+
 export interface Bot {
   id: string;
   name: string;
   slug: string;
   persona: string;
   model: string | null;
+  effort: Effort | null;
+  avatar: number;
   allowedTools: string[] | null;
   maxTurns: number;
   maxMinutes: number;
@@ -31,6 +66,8 @@ export interface BotInput {
   name: string;
   persona?: string;
   model?: string | null;
+  effort?: Effort | null;
+  avatar?: number;
   allowedTools?: string[] | null;
   maxTurns?: number;
   maxMinutes?: number;
@@ -92,6 +129,7 @@ export type ApprovalChannel = "panel" | "bale" | "telegram" | "timeout";
 export interface Approval {
   id: string;
   runId: string;
+  botId: string;
   botName: string;
   toolName: string;
   input: unknown;
@@ -155,11 +193,33 @@ export type ProxyConnState = "connected" | "disconnected" | "connecting" | "unkn
 
 export interface ProxyStatus {
   state: ProxyConnState;
+  /** Why it is down: the proxy server does not answer, or sing-box itself is not running. */
+  reason: "server_unreachable" | "engine_down" | null;
   latencyMs: number | null;
   /** Never the full link: only what is safe to show. */
   current: { scheme: string; host: string; port: number; remark: string } | null;
   subscriptionUrlSet: boolean;
+  connectionCount: number;
+  /** lastResult: `switched:<name>`, `none_worked` or `no_other_connection`. */
+  failover: { enabled: boolean; lastAt: string | null; lastResult: string | null };
+  /** lastResult: `ok:<added>:<removed>` or `failed`. */
+  subscriptionSync: { lastAt: string | null; lastResult: string | null };
   checkedAt: string;
+}
+
+/** One saved proxy link, without the link itself. */
+export interface ProxyConnection {
+  id: string;
+  name: string;
+  scheme: string;
+  host: string;
+  port: number;
+  remark: string;
+  /** The resolved server address, which the host kill switch needs. Null when the name does not resolve. */
+  ip: string | null;
+  active: boolean;
+  fromSubscription: boolean;
+  addedAt: string;
 }
 
 export interface ProxyNode {

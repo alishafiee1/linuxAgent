@@ -82,6 +82,16 @@ export class Notifier {
     });
   }
 
+  private push: { notify(title: string, body: string, url?: string): Promise<void> } | null = null;
+
+  attachPush(push: { notify(title: string, body: string, url?: string): Promise<void> }): void {
+    this.push = push;
+  }
+
+  private pushSafe(title: string, body: string): void {
+    void this.push?.notify(title, body).catch((e) => this.log(`push failed: ${(e as Error).message}`));
+  }
+
   attachRequests(requests: RequestService, baseUrl: string): void {
     this.requests = requests;
     this.baseUrl = baseUrl;
@@ -107,6 +117,7 @@ export class Notifier {
   }
 
   private async sendRequest(r: UserRequest): Promise<void> {
+    this.pushSafe(`بات «${r.botName}» منتظر شماست`, r.kind === "questions" ? "یک پرسش دارد" : "نیاز به پاسخ شما دارد");
     for (const name of ["bale", "telegram"] as const) {
       const c = this.api(name);
       if (!c) continue;
@@ -261,6 +272,7 @@ export class Notifier {
   }
 
   private async sendApproval(a: Approval): Promise<void> {
+    this.pushSafe(`بات «${a.botName}» اجازه می‌خواهد`, a.reason);
     for (const name of ["bale", "telegram"] as const) {
       const c = this.api(name);
       if (!c) continue;
