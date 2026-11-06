@@ -42,6 +42,7 @@ export function KnowledgePage() {
   const [skill, setSkill] = useState<{ slug: string | null; name: string; description: string; body: string } | null>(null);
   const [memMsg, runMem] = useMsg();
   const [skillMsg, runSkill] = useMsg();
+  const [tab, setTab] = useState<"shared" | "bots" | "skills">("shared");
   const loadSkills = useCallback(() => api.get<Skill[]>("/api/skills").then(setSkills, () => {}), []);
   useEffect(() => {
     void api.get<MemoryFile[]>("/api/memory").then(setMemory, () => {});
@@ -50,20 +51,42 @@ export function KnowledgePage() {
   useEffect(() => {
     setText(memory.find((m) => m.scope === scope)?.content ?? "");
   }, [memory, scope]);
+  // The first tab edits the text every bot reads; the second one, a single bot's own notes.
+  useEffect(() => {
+    if (tab === "shared") setScope("shared");
+    else if (tab === "bots") setScope((cur) => (cur !== "shared" ? cur : (memory.find((m) => m.scope !== "shared")?.scope ?? "shared")));
+  }, [tab, memory]);
 
   return (
-    <div className="page cols">
-      <h2>{t.knowledge}</h2>
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.knowledge}</h2>
+          <p>{t.knowledgeHelp}</p>
+        </div>
+      </header>
+      <div className="tabs" role="tablist">
+        {(["shared", "bots", "skills"] as const).map((k) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>
+            {k === "shared" ? t.tabShared : k === "bots" ? t.tabBotNotes : t.skills}
+          </button>
+        ))}
+      </div>
+      {tab !== "skills" && (
       <div className="card section">
-        <h3>{t.memory}</h3>
+        <h3>{tab === "shared" ? t.sharedMemory : t.memory}</h3>
         <p className="muted">{t.memoryHelp}</p>
-        <select value={scope} onChange={(e) => setScope(e.target.value)}>
-          {memory.map((m) => (
-            <option key={m.scope} value={m.scope}>
-              {m.scope === "shared" ? t.sharedMemory : m.label}
-            </option>
-          ))}
-        </select>
+        {tab === "bots" && (
+          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+            {memory
+              .filter((m) => m.scope !== "shared")
+              .map((m) => (
+                <option key={m.scope} value={m.scope}>
+                  {m.label}
+                </option>
+              ))}
+          </select>
+        )}
         <textarea rows={10} dir="auto" value={text} onChange={(e) => setText(e.target.value)} />
         <div className="row">
           <button
@@ -80,6 +103,8 @@ export function KnowledgePage() {
           <Note msg={memMsg} />
         </div>
       </div>
+      )}
+      {tab === "skills" && (
       <div className="card section">
         <div className="row">
           <h3>{t.skills}</h3>
@@ -158,6 +183,7 @@ export function KnowledgePage() {
         )}
         <Note msg={skillMsg} />
       </div>
+      )}
     </div>
   );
 }
@@ -258,8 +284,12 @@ export function LiveBrowser({ botId, vault: given }: { botId: string; vault: Vau
   if (!status) return null;
   if (!status.running)
     return (
-      <div className="row">
-        <span className="muted">{t.browserClosed}</span>
+      <div className="browser-empty">
+        <span className="browser-empty-icon">
+          <IconGlobe size={26} />
+        </span>
+        <strong>{t.browserClosed}</strong>
+        <p>{t.browserEmptyHint}</p>
         <button className="primary" onClick={() => void run(() => api.post(`/api/browser/${botId}/open`).then(load), "")}>
           {t.browserOpen}
         </button>
@@ -353,28 +383,30 @@ export function BrowserPage({ bots }: { bots: Bot[] }) {
   const current = capable.find((b) => b.id === botId)?.id ?? capable[0]?.id ?? "";
 
   return (
-    <div className="page">
-      <h2>{t.browser}</h2>
-      <div className="card section">
-        <h3>
-          <IconGlobe size={16} />
-          {t.browserLive}
-        </h3>
+    <div className="page wide">
+      <header className="pg-top">
+        <div>
+          <h2>{t.browser}</h2>
+          <p>{t.browserHelp}</p>
+        </div>
+        {capable.length > 0 && (
+          <select className="pg-select" value={current} onChange={(e) => setBotId(e.target.value)} aria-label={t.browserLive}>
+            {capable.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </header>
+      <div className="card browser-card">
         {capable.length === 0 ? (
-          <p className="muted">{t.browserNoBots}</p>
+          <p className="muted browser-none">{t.browserNoBots}</p>
         ) : (
-          <>
-            <select value={current} onChange={(e) => setBotId(e.target.value)}>
-              {capable.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <LiveBrowser key={current} botId={current} vault={vault} />
-          </>
+          <LiveBrowser key={current} botId={current} vault={vault} />
         )}
       </div>
+      <p className="muted browser-foot">{t.browserFoot}</p>
     </div>
   );
 }

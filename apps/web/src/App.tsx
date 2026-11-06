@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { ApprovalBadge, usePending } from "./approvalPop";
 import { api, ApiError } from "./api";
 import { BotAvatar } from "./avatars";
-import { BotDialog } from "./BotDialog";
+import { BotPage } from "./BotDialog";
 import { Chat } from "./Chat";
 import { ChatHub } from "./chatHub";
 import { ConnectionsPage } from "./connections";
@@ -419,6 +419,17 @@ function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
 
       <main className="main">
+        {dialog && (
+          <BotPage
+            bot={dialog.bot}
+            onClose={() => setDialog(null)}
+            onSaved={async (b) => {
+              setDialog(null);
+              await loadBots();
+              openBotChat(b.id);
+            }}
+          />
+        )}
         {status?.proxy?.state === "disconnected" && (
           <div className="banner bad">
             {t.proxyDown}
@@ -515,17 +526,6 @@ function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
             {t.delete}
           </button>
         </div>
-      )}
-      {dialog && (
-        <BotDialog
-          bot={dialog.bot}
-          onClose={() => setDialog(null)}
-          onSaved={async (b) => {
-            setDialog(null);
-            await loadBots();
-            openBotChat(b.id);
-          }}
-        />
       )}
     </div>
   );

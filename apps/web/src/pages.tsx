@@ -349,7 +349,12 @@ export function SettingsPage({ proxy, onSaved }: { proxy: ProxyStatus | null; on
   };
   return (
     <div className="page cols">
-      <h2>{t.settings}</h2>
+      <header className="pg-top">
+        <div>
+          <h2>{t.settings}</h2>
+          <p>{t.settingsHelp}</p>
+        </div>
+      </header>
       <div className="col">
       <div className="card section">
         <h3>

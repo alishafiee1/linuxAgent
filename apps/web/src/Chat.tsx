@@ -148,7 +148,10 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
     <div className="chat">
       <div className="chat-head">
         <BotAvatar bot={bot} size="lg" badge={headBadge} />
-        <strong>{bot.name}</strong>
+        <span className="chat-who">
+          <strong>{bot.name}</strong>
+          <small>{bot.persona.split("\n")[0]}</small>
+        </span>
         <span className="spacer" />
         <select value={convId ?? ""} onChange={(e) => setConvId(e.target.value || null)}>
           {conversations.length === 0 && <option value="">{t.newConversation}</option>}
@@ -217,6 +220,7 @@ export function Chat({ bot, activityTick, initialConversation, onBotChanged, hea
           </button>
         </form>
         {error && <div className="err" style={{ textAlign: "center" }}>{error}</div>}
+        <p className="composer-hint">{t.composerHint}</p>
       </div>
     </div>
   );
